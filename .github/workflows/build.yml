@@ -11,7 +11,7 @@ on:
         default: 'run'
 jobs:
   build:
-    runs-on: marketplace.gcr.io/google/ubuntu2404
+    runs-on: ubuntu-24.04
     steps:
     - name: Check out repository code
       uses: actions/checkout@v4
