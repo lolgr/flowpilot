@@ -14,8 +14,6 @@ build_flowy() {
 
 # Function to build with scons
 build_scons() {
-  ## test
-  buildozer clean
   echo "Building with scons..."
   ## libusb
   ~/.buildozer/android/platform/android-ndk-r28c/ndk-build -C third_party/libusb/android/jni USE_PC_NAME=1
