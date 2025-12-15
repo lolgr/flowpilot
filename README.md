@@ -40,3 +40,16 @@ We also push frequent updates on our [twitter handle](https://twitter.com/flowdr
 # Disclaimer 
 
 THIS IS ALPHA QUALITY SOFTWARE FOR RESEARCH PURPOSES ONLY. THIS IS NOT A PRODUCT. YOU ARE RESPONSIBLE FOR COMPLYING WITH LOCAL LAWS AND REGULATIONS. NO WARRANTY EXPRESSED OR IMPLIED.
+
+## Android
+
+The Android app contains an in-app camera pipeline that uses Camera2/CameraX to feed frames into the model.
+
+### USB / External camera (UVC) support 🔌
+
+The app now detects external (USB/UVC) cameras exposed by the system and will use them automatically when available. You can also force a camera id or request an external camera explicitly by setting the `ROAD_CAMERA_SOURCE` environment variable before launching the app (for example in an intent or the app environment):
+
+ - `ROAD_CAMERA_SOURCE=external` — selects the first external camera (if present)
+ - `ROAD_CAMERA_SOURCE=<camera_id>` — selects a specific camera id as reported by the system
+
+If no external camera is found (or no override is provided), the app falls back to the default built-in camera.

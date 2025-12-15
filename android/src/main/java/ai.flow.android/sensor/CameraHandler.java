@@ -98,6 +98,31 @@ public class CameraHandler implements SensorInterface {
         ph.createPublishers(Arrays.asList("wideRoadCameraState", "wideRoadCameraBuffer"));
     }
 
+    /**
+     * Helper to pick camera id. Pure logic separated to allow unit testing.
+     * @param cameraIds available camera id list
+     * @param lensFacingMap map from camera id to CameraCharacteristics.LENS_FACING integer
+     * @param override if non-null and not 'external' this value will be used as camera id; if 'external' will prefer external cameras
+     * @return chosen camera id (or null if none)
+     */
+    public static String chooseCameraId(String[] cameraIds, java.util.Map<String, Integer> lensFacingMap, String override) {
+        if (cameraIds == null || cameraIds.length == 0) return null;
+        if (override != null && !override.isEmpty() && !override.equalsIgnoreCase("external")) {
+            return override;
+        }
+        boolean preferExternal = (override == null) || override.equalsIgnoreCase("external");
+        if (preferExternal) {
+            for (String id : cameraIds) {
+                Integer lf = lensFacingMap.get(id);
+                if (lf != null && lf == CameraCharacteristics.LENS_FACING_EXTERNAL) {
+                    return id;
+                }
+            }
+        }
+        // fallback to first available
+        return cameraIds[0];
+    }
+
     @Override
     public void dispose() {}
 
@@ -112,8 +137,48 @@ public class CameraHandler implements SensorInterface {
 
         String cameraId = "0";
 
+        // Allow overriding camera source via env var ROAD_CAMERA_SOURCE (camera id or 'external')
+        String override = System.getenv("ROAD_CAMERA_SOURCE");
+        if (override != null && !override.isEmpty()) {
+            Log.i(TAG, "ROAD_CAMERA_SOURCE override set: " + override);
+            if (!override.equalsIgnoreCase("external")) {
+                cameraId = override;
+            }
+        }
+
+        // Try to detect an external/USB camera (LENS_FACING_EXTERNAL) and use it when available.
         try {
-            cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
+            String[] cameraIds = manager.getCameraIdList();
+                Log.i(TAG, "Available camera IDs: " + Arrays.toString(cameraIds));
+
+                // Build a simple map of lens facing values to let the selection logic be unit-testable
+                java.util.Map<String, Integer> lensFacingMap = new java.util.HashMap<>();
+                for (String id : cameraIds) {
+                    try {
+                        CameraCharacteristics ch = manager.getCameraCharacteristics(id);
+                        Integer lensFacing = ch.get(CameraCharacteristics.LENS_FACING);
+                        lensFacingMap.put(id, lensFacing);
+                        Log.i(TAG, "Camera " + id + " lens facing: " + lensFacing);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Skipping camera " + id + " due to: " + e.toString());
+                    }
+                }
+
+                // choose best camera id (prefers external if available) — helper is static and unit-testable
+                String chosen = chooseCameraId(cameraIds, lensFacingMap, override);
+                if (chosen != null) {
+                    cameraId = chosen;
+                    try {
+                        cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Failed to get characteristics for chosen camera " + cameraId + ": " + e.toString());
+                    }
+                }
+
+            // if not found above, fallback to cameraId 0
+            if (cameraCharacteristics == null) {
+                cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
+            }
             StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
             if (ActivityCompat.checkSelfPermission(context, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
