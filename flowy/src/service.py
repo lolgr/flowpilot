@@ -2,6 +2,7 @@
 from random import sample, randint
 from string import ascii_letters
 from time import localtime, asctime, sleep
+import threading
 
 from oscpy.server import OSCThreadServer
 from oscpy.client import OSCClient
@@ -13,17 +14,13 @@ CLIENT = OSCClient('localhost', 3002)
 
 import os
 os.environ['ZMQ'] = '1'
+os.environ['BASEDIR'] = './'
 
 import cereal.messaging as messaging
 sm = messaging.SubMaster(["radarState"])
 
-# import zmq
-
-# context = zmq.Context()
-# socket = context.socket(zmq.SUB)
-# # accept all topics (prefixed) - default is none
-# socket.setsockopt_string(zmq.SUBSCRIBE, "")
-# socket.bind("tcp://*:5556")
+# 导入远程日志服务器
+import remote_logger
 
 def ping(*_):
     'answer to ping messages'
@@ -33,7 +30,6 @@ def ping(*_):
             str().encode('utf8'),
         ],
     )
-    # socket.send_pyobj({'a': 'b'})
 
 
 def send_date():
@@ -44,7 +40,18 @@ def send_date():
     )
 
 
+def start_remote_logger_thread():
+    '启动远程日志服务器线程'
+    logger_thread = threading.Thread(target=remote_logger.start_remote_logger)
+    logger_thread.daemon = True
+    logger_thread.start()
+    print("Remote logger thread started")
+
+
 if __name__ == '__main__':
+    # 启动远程日志服务器
+    start_remote_logger_thread()
+    
     SERVER = OSCThreadServer()
     SERVER.listen('localhost', port=3000, default=True)
     SERVER.bind(b'/ping', ping)
