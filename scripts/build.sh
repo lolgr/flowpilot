@@ -25,7 +25,7 @@ build_scons() {
   cd -
 
   # Build openpilot
-  scons .
+  scons . -j$(nproc)
 
   # Move libs
   cp third_party/libusb/android/libs/arm64-v8a/libusb-1.0.so android/libs/arm64-v8a
