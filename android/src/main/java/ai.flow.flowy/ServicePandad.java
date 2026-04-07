@@ -28,7 +28,7 @@ class PandaInstance implements Runnable {
 
 public class ServicePandad extends Service {
 
-    private static final String TAG = "ServicePandad";
+    private static final String TAG = "FlowPilot";
     private Thread applicationThread = null;
 
 	private static final String ACTION_USB_PERMISSION = "ai.flow.flowy.USB_PERMISSION";

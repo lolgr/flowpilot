@@ -27,6 +27,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.util.Log;
 
 import androidx.fragment.app.FragmentActivity;
 import androidx.fragment.app.FragmentTransaction;
@@ -54,6 +55,9 @@ public class AndroidLauncher extends FragmentActivity implements AndroidFragment
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		appContext = getApplicationContext();
+
+		// adb -d logcat FlowPilot:I *:S
+		Log.i("FlowPilot", "FlowPilot Starting...");
 
 		// set environment variables from intent extras.
 		Bundle bundle = getIntent().getExtras();
