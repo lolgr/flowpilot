@@ -44,6 +44,12 @@ build_app() {
   ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew assembleRelease --configure-on-demand --daemon
 }
 
+# Function to build from scratch
+build_clean() {
+  echo "Clean build..."
+  ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew clean build
+}
+
 # Function to build everything
 build_full() {
   echo "Building everything..."
@@ -67,7 +73,7 @@ shift
 
 # Check if an argument is provided
 if [ -z "$build_target" ]; then
-  echo "Usage: $0 {full|scons|flowy|app}"
+  echo "Usage: $0 {full|scons|flowy|app|clean}"
   exit 1
 fi
 
@@ -85,12 +91,15 @@ case "$build_target" in
   app)
     build_app
     ;;
+  clean)
+    build_clean
+    ;;
   run)
     run "$@"
     ;;
   *)
     echo "Invalid argument: $1"
-    echo "Usage: $0 {full|scons|flowy|app}"
+    echo "Usage: $0 {full|scons|flowy|app|clean}"
     exit 1
     ;;
 esac
