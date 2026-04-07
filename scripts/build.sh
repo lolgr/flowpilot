@@ -41,7 +41,7 @@ build_scons() {
 # Function to build the app
 build_app() {
   echo "Building the app..."
-  ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew assembleRelease
+  ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew assembleRelease --configure-on-demand --daemon
 }
 
 # Function to build everything
