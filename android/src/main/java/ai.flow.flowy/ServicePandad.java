@@ -69,8 +69,10 @@ public class ServicePandad extends Service {
         }
 
         // Check for both panda vendor IDs and product IDs
-        if ((device.getVendorId() == 0xbbaa || device.getVendorId() == 0x3801) &&
-            (device.getProductId() == 0xddcc || device.getProductId() == 0xddee)) {
+        // Using arduino vendor ID: 0x1a86 and product ID: 0x7523
+        // This may be different if the arudino is not an uno or has a different usb chip.
+        if ((device.getVendorId() == 0xbbaa || device.getVendorId() == 0x3801 || device.getVendorId() == 0x1a86) &&
+            (device.getProductId() == 0xddcc || device.getProductId() == 0xddee || device.getProductId() == 0x7523)) {
             PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_MUTABLE);
             ((UsbManager) context.getSystemService(Context.USB_SERVICE)).requestPermission(device, pendingIntent);
         } else {
