@@ -50,14 +50,16 @@ public class AndroidLauncher extends FragmentActivity implements AndroidFragment
 	public static Context appContext;
 	public static ParamsInterface params;
 
+    private static final String TAG = "FlowPilot";
+
 	@SuppressLint("HardwareIds")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		appContext = getApplicationContext();
 
-		// adb -d logcat FlowPilot:I *:S
-		Log.i("FlowPilot", "FlowPilot Starting...");
+		// adb -d logcat TAG:I *:S
+		Log.i(TAG, "FlowPilot Starting...");
 
 		// set environment variables from intent extras.
 		Bundle bundle = getIntent().getExtras();

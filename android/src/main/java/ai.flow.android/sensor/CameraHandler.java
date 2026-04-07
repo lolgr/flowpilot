@@ -61,7 +61,7 @@ import messaging.ZMQPubHandler;
 
 public class CameraHandler implements SensorInterface {
 
-    private final String TAG = "CameraHandler";
+    private final String TAG = "FlowPilot";
 
     private final Context context;
     private MsgFrameBuffer msgFrameBuffer;
