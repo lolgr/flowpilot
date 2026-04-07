@@ -8,6 +8,7 @@ import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 
 import java.util.ArrayList;
+import static ai.flow.common.transformations.Camera.CameraIntrinsics;
 
 public class Draw {
     /**
@@ -16,10 +17,10 @@ public class Draw {
     public static final float LEAD_X_SCALE = 10f;
     public static final float LEAD_Y_SCALE = 10f;
 
-    public static Matrix4 cam_intrinsics = new Matrix4(new float[] {
-            930.f,  0.0f, 0.0f, 0.f,
-            0.0f, 930.f, 0.0f, 0.f,
-            640.0f, 360.0f, 1.0f, 0.f,
+    public static final Matrix4 cam_intrinsics = new Matrix4(new float[] {
+            CameraIntrinsics[0],  0.0f, 0.0f, 0.f,
+            0.0f, CameraIntrinsics[4], 0.0f, 0.f,
+            CameraIntrinsics[2], CameraIntrinsics[5], 1.0f, 0.f,
             0.f, 0.f, 0.f, 0.f
     });
 

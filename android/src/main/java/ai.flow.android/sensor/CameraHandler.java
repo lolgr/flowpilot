@@ -110,7 +110,7 @@ public class CameraHandler implements SensorInterface {
             throw new RuntimeException("Unable to get camera manager.");
         }
 
-        String cameraId = "0";
+        String cameraId = "2";
 
         try {
             cameraCharacteristics = manager.getCameraCharacteristics(cameraId);
@@ -142,7 +142,7 @@ public class CameraHandler implements SensorInterface {
     private void startCamera() {
         List<Surface> list = new ArrayList<>();
 
-        final int width = 1280, height = 720;
+        final int width = 1920, height = 1080;
         reader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 5);
 
         list.add(reader.getSurface());
