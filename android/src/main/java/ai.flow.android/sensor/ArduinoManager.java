@@ -24,8 +24,14 @@ import android.util.Log;
 import android.widget.Toast;
 import android.app.AlertDialog;
 import java.util.HashMap;
+import java.util.List;
+import java.nio.charset.StandardCharsets;
 
-// TODO: Remove this and create generic manager for Panda and Arduino 
+import com.hoho.android.usbserial.driver.UsbSerialPort;
+import com.hoho.android.usbserial.driver.UsbSerialDriver;
+import com.hoho.android.usbserial.driver.UsbSerialProber;
+import com.hoho.android.usbserial.util.SerialInputOutputManager;
+
 public class ArduinoManager implements SensorInterface {
     private Context ctx;
     private Activity activity;
@@ -62,17 +68,6 @@ public class ArduinoManager implements SensorInterface {
 		Log.i(TAG, "Number of USB devices found: "+deviceList.size());
         final int deviceCount = deviceList.size();
 
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                // Toast.makeText(ctx, "Testing toast message", Toast.LENGTH_LONG).show();
-                new AlertDialog.Builder(activity)
-                .setTitle("Title")
-                .setMessage("Number of devices: " + deviceList.size())
-                .setPositiveButton("OK", (dialog, which) -> { /* handle */ })
-                .show();
-            }
-        });
-
         for (UsbDevice usbDevice : deviceList.values())
         {
             maybeRequestUSBPermission(usbDevice, ctx);
@@ -97,9 +92,27 @@ public class ArduinoManager implements SensorInterface {
                         if(device != null) {
                             UsbManager usbManager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
                             UsbDeviceConnection usbDeviceConnection = usbManager.openDevice(device);
-                            Log.i(TAG, "Permission granted for serial "+usbDeviceConnection.getSerial());
-                            ArduinoInstance arduinoInstance = new ArduinoInstance(usbDeviceConnection.getFileDescriptor());
-                            new Thread(arduinoInstance).start();
+
+                            if (usbDeviceConnection == null) {
+                                Log.i(TAG, "Failed to open device");
+                                return;
+                            }
+                            try {
+                                List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+                                UsbSerialDriver driver = availableDrivers.get(0);
+
+                                UsbSerialPort port = driver.getPorts().get(0);
+                                port.open(usbDeviceConnection);
+                                port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+
+                                ArduinoInstance arduinoinstance = new ArduinoInstance(activity);
+                                
+                                SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, arduinoinstance);
+                                usbIoManager.start();
+
+                            } catch (Exception e) {
+                                Log.i(TAG, "Exception in onReceive usbReceiver: " + e);
+                            }
                         }
                     }
                     else {
@@ -134,13 +147,27 @@ public class ArduinoManager implements SensorInterface {
     public static native void nativeStop();
 }
 
-class ArduinoInstance implements Runnable {
-    private int fd;
-    public ArduinoInstance(int fd) {
-        this.fd = fd;
-    }
+class ArduinoInstance implements SerialInputOutputManager.Listener {
+    private static final String TAG = "FlowPilot";
+    Activity activity;
+
+    public ArduinoInstance(Activity activity) { this.activity = activity; }
+
     @Override
-    public void run(){
-        ArduinoManager.nativeStart(this.fd);
+    public void onNewData(byte[] data) {
+        activity.runOnUiThread(new Runnable() {
+            public void run() {
+                new AlertDialog.Builder(activity)
+                .setTitle("Serial Message Received")
+                .setMessage(new String(data))
+                .setPositiveButton("OK", (dialog, which) -> { })
+                .show();
+            }
+        });
+    }
+
+    @Override
+    public void onRunError(Exception e) {
+        Log.i(TAG, "onRunError exception in ArduinoInstance: " + e);
     }
 }

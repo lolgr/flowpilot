@@ -72,6 +72,7 @@ repositories {
 configurations { natives }
 
 dependencies {
+    implementation 'com.github.mik3y:usb-serial-for-android:3.9.0'
 //    implementation "io.github.crow-misia.libyuv:libyuv-android:0.28.0"
 //    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
     implementation project(path: ':definitions')

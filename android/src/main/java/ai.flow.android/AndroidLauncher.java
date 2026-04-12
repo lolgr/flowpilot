@@ -41,7 +41,7 @@ import java.util.*;
 
 import ai.flow.android.sensor.PandaManager;
 import ai.flow.android.sensor.OnroadManager;
-
+import ai.flow.android.sensor.ArduinoManager;
 
 /** Launches the main android flowpilot application. */
 public class AndroidLauncher extends FragmentActivity implements AndroidFragmentApplication.Callbacks {
@@ -105,12 +105,15 @@ public class AndroidLauncher extends FragmentActivity implements AndroidFragment
 		CameraHandler cameraManager = new CameraHandler(getApplication().getApplicationContext());
 //		CameraManager cameraManager = new CameraManager(getApplication().getApplicationContext(), utils.F2 || Camera.FORCE_TELE_CAM_F3 ? Camera.CAMERA_TYPE_ROAD : Camera.CAMERA_TYPE_WIDE);
 
-		PandaManager pandaManager = new PandaManager(getApplication().getApplicationContext());
+		// PandaManager pandaManager = new PandaManager(getApplication().getApplicationContext());
 		OnroadManager onroadManager = new OnroadManager(getApplication().getApplicationContext());
+		ArduinoManager arduinoManager = new ArduinoManager(getApplication().getApplicationContext(), this);
+
 //		ModelparsedManager modelparsedManager = new ModelparsedManager(getApplication().getApplicationContext());
 		managers = new HashMap<String, SensorInterface>() {{
-			put("panda", pandaManager);
+			// put("panda", pandaManager);
 			put("onroad", onroadManager);
+			put("arduino", arduinoManager);
 //			put("modelparsed", modelparsedManager);
 		}};
 		sensors = new HashMap<String, SensorInterface>() {{
