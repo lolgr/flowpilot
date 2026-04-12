@@ -50,7 +50,8 @@ public class Launcher {
     public void startAllD() {
         startSensorD();
         initModelD();
-        this.managers.get("panda").start();
+        // this.managers.get("panda").start();
+        this.managers.get("arduino").start();
     }
 
     public void main(String[] args) {
