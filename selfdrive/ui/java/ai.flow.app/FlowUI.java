@@ -14,6 +14,7 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.TextureAtlas;
 import com.badlogic.gdx.graphics.g2d.freetype.FreeTypeFontGenerator;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
 import org.nd4j.linalg.factory.Nd4j;
@@ -140,9 +141,15 @@ public class FlowUI extends Game {
 
         if (Gdx.gl != null) { // else headless mode
             shapeRenderer = new ShapeRenderer();
-            font = new BitmapFont();
+            FreeTypeFontGenerator fontGen = new FreeTypeFontGenerator(Gdx.files.internal("fonts/Inter-Regular.ttf"));
+            FreeTypeFontGenerator.FreeTypeFontParameter parameter = new FreeTypeFontGenerator.FreeTypeFontParameter();
+            parameter.genMipMaps = true;
+            parameter.magFilter = Texture.TextureFilter.MipMapLinearLinear;
+            parameter.minFilter = Texture.TextureFilter.Linear;
+            parameter.size = 72;
+            font = fontGen.generateFont(parameter);
             font.setColor(0f, 1f, 0f, 1f);
-            font.getData().setScale(5);
+            fontGen.dispose();
             skin = new Skin(new TextureAtlas(Gdx.files.internal("skins/uiskin.atlas")));
             for (Texture texture: skin.getAtlas().getTextures())
                 texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
