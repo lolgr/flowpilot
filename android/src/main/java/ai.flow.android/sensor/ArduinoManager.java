@@ -25,12 +25,17 @@ import android.widget.Toast;
 import android.app.AlertDialog;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Arrays;
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
+import ai.flow.sensor.messages.MsgCanData;
 
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
 import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
+
+import messaging.ZMQPubHandler;
 
 public class ArduinoManager implements SensorInterface {
     private Context ctx;
@@ -53,8 +58,6 @@ public class ArduinoManager implements SensorInterface {
     public void stop() {}
 
     public void start() {
-        System.loadLibrary("arduinod");
-
         IntentFilter attachFilter = new IntentFilter();
         // Receiver for attached devices, used to request permission when plugging in a device
         attachFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
@@ -129,7 +132,6 @@ public class ArduinoManager implements SensorInterface {
             return;
         }
 
-        // Check for both panda vendor IDs and product IDs
         // Using arduino vendor ID: 0x1a86 and product ID: 0x7523
         // This may be different if the arudino is not an uno or has a different usb chip.
         if ((device.getVendorId() == 0x1a86) &&
@@ -149,21 +151,46 @@ public class ArduinoManager implements SensorInterface {
 
 class ArduinoInstance implements SerialInputOutputManager.Listener {
     private static final String TAG = "FlowPilot";
-    Activity activity;
+    private Activity activity;
+    // private ZMQPubHandler ph;
+    private MsgCanData msgCanData;
 
-    public ArduinoInstance(Activity activity) { this.activity = activity; }
+    public ArduinoInstance(Activity activity) {
+        this.activity = activity;
+        msgCanData = new MsgCanData();
+        // ph = new ZMQPubHandler();
+        // ph.createPublishers(Arrays.asList("can"));
+    }
 
     @Override
     public void onNewData(byte[] data) {
+        if (data.length < 8) return;
+
+        // First 4 bytes represent canid
+        ByteBuffer buffer = ByteBuffer.wrap(data, 0, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        int canId = buffer.getInt();
+
+        // DLC is 5th byte
+        int dlc = data[4] & 0xFF;
+        if (data.length < 8 + dlc) return;
+        
+        // 2 padding bytes then rest is data
+        byte[] canData = new byte[dlc];
+        buffer = ByteBuffer.wrap(data, 8, dlc);
+        buffer.get(canData);
+
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 new AlertDialog.Builder(activity)
                 .setTitle("Serial Message Received")
-                .setMessage(new String(data))
+                .setMessage("canId: " + Integer.toString(canId) + "\n DLC: " + Integer.toString(dlc) + "\n Data: " + Integer.toString((int)canData[0]))
                 .setPositiveButton("OK", (dialog, which) -> { })
                 .show();
             }
         });
+
+        // msgCanData.canData.get(0).setDat(data);
+        // ph.publishBuffer("can", msgCanData.serialize(true));
     }
 
     @Override
