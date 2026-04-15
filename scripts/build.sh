@@ -44,10 +44,11 @@ build_app() {
   ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew assembleRelease --configure-on-demand --daemon
 }
 
-# Function to build from scratch
+# Function to gradle clean then full build (useful when adding new java class files)
 build_clean() {
-  echo "Clean build..."
-  ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew clean build
+  echo "Gradle cleaning..."
+  ANDROID_HOME="$HOME/.buildozer/android/platform/android-sdk" ./gradlew clean
+  build_full
 }
 
 # Function to build everything
