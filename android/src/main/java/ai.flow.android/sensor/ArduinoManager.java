@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
 import ai.flow.sensor.messages.MsgCanData;
+import ai.flow.sensor.messages.MsgPandaState;
+import ai.flow.definitions.Definitions;
 
 import com.hoho.android.usbserial.driver.UsbSerialPort;
 import com.hoho.android.usbserial.driver.UsbSerialDriver;
@@ -79,49 +81,55 @@ public class ArduinoManager implements SensorInterface {
     }
 
     private BroadcastReceiver usbReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
+        public synchronized void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             System.out.println("RECEIVING INTENT: " + action);
 
+            // If newly connected USB device, request permission from android
             if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
-                synchronized (this) {
-                    UsbDevice usbDevice = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    maybeRequestUSBPermission(usbDevice, context);
-                }
-            } else if (ACTION_USB_PERMISSION.equals(action)) {
-                synchronized (this) {
-                    UsbDevice device = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                    if (intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                        if(device != null) {
-                            UsbManager usbManager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
-                            UsbDeviceConnection usbDeviceConnection = usbManager.openDevice(device);
+                UsbDevice usbDevice = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+                maybeRequestUSBPermission(usbDevice, context);
+                return;
+            } else if (!ACTION_USB_PERMISSION.equals(action))
+                // Some other usb message return
+                return;
 
-                            if (usbDeviceConnection == null) {
-                                Log.i(TAG, "Failed to open device");
-                                return;
-                            }
-                            try {
-                                List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
-                                UsbSerialDriver driver = availableDrivers.get(0);
+            // Permission denied return
+            UsbDevice device = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
+            if (!intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
+                Log.i(TAG, "Permission denied for device " + device);
+                return;
+            }
 
-                                UsbSerialPort port = driver.getPorts().get(0);
-                                port.open(usbDeviceConnection);
-                                port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+            if(device == null)
+                return;
+            
+            UsbManager usbManager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
+            UsbDeviceConnection usbDeviceConnection = usbManager.openDevice(device);
 
-                                ArduinoInstance arduinoinstance = new ArduinoInstance(activity);
-                                
-                                SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, arduinoinstance);
-                                usbIoManager.start();
+            if (usbDeviceConnection == null) {
+                Log.i(TAG, "Failed to open device");
+                return;
+            }
 
-                            } catch (Exception e) {
-                                Log.i(TAG, "Exception in onReceive usbReceiver: " + e);
-                            }
-                        }
-                    }
-                    else {
-                        Log.i(TAG, "Permission denied for device " + device);
-                    }
-                }
+            try {
+                List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
+                UsbSerialDriver driver = availableDrivers.get(0);
+
+                UsbSerialPort port = driver.getPorts().get(0);
+                port.open(usbDeviceConnection);
+                port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
+
+                ArduinoInstance arduinoinstance = new ArduinoInstance(activity);
+                
+                SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, arduinoinstance);
+                usbIoManager.start();
+
+                ArduinoInstance.DummyPandaInstance dummyPanda = arduinoinstance.new DummyPandaInstance();
+                dummyPanda.start();
+
+            } catch (Exception e) {
+                Log.i(TAG, "Exception in onReceive usbReceiver: " + e);
             }
         }
     };
@@ -152,14 +160,13 @@ public class ArduinoManager implements SensorInterface {
 class ArduinoInstance implements SerialInputOutputManager.Listener {
     private static final String TAG = "FlowPilot";
     private Activity activity;
-    // private ZMQPubHandler ph;
+    private static ZMQPubHandler ph = new ZMQPubHandler();
     private MsgCanData msgCanData;
 
     public ArduinoInstance(Activity activity) {
         this.activity = activity;
         msgCanData = new MsgCanData();
-        // ph = new ZMQPubHandler();
-        // ph.createPublishers(Arrays.asList("can"));
+        ph.createPublishers(Arrays.asList("can", "pandaStates"));
     }
 
     @Override
@@ -179,22 +186,73 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         buffer = ByteBuffer.wrap(data, 8, dlc);
         buffer.get(canData);
 
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                new AlertDialog.Builder(activity)
-                .setTitle("Serial Message Received")
-                .setMessage("canId: " + Integer.toString(canId) + "\n DLC: " + Integer.toString(dlc) + "\n Data: " + Integer.toString((int)canData[0]))
-                .setPositiveButton("OK", (dialog, which) -> { })
-                .show();
-            }
-        });
+        // activity.runOnUiThread(new Runnable() {
+        //     public void run() {
+        //         new AlertDialog.Builder(activity)
+        //         .setTitle("Serial Message Received")
+        //         // .setMessage("canId: " + Integer.toString(canId) + "\n DLC: " + Integer.toString(dlc) + "\n Data: " + Integer.toString((int)canData[0]))
+        //         .setPositiveButton("OK", (dialog, which) -> { })
+        //         .show();
+        //     }
+        // });
 
-        // msgCanData.canData.get(0).setDat(data);
-        // ph.publishBuffer("can", msgCanData.serialize(true));
+        msgCanData.canData.get(0).setAddress(canId);
+        msgCanData.canData.get(0).setSrc((byte)0);
+        msgCanData.canData.get(0).setBusTime((byte)0);
+        msgCanData.canData.get(0).setDat(canData);
+        ph.publishBuffer("can", msgCanData.serialize(true));
     }
 
     @Override
     public void onRunError(Exception e) {
         Log.i(TAG, "onRunError exception in ArduinoInstance: " + e);
+    }
+
+    class DummyPandaInstance implements Runnable {
+        private MsgPandaState msgPandaState;
+        long lastCanDataTime;
+
+        public DummyPandaInstance() { }
+
+        public void start() {
+            try {
+                msgPandaState = new MsgPandaState();
+
+                Thread dummyPandaState = new Thread(this);
+                dummyPandaState.start();
+
+            } catch (Exception e) {
+                Log.i(TAG, "Exception in DummyPandaInstance start: " + e);
+            }
+
+        }
+
+        public void initPandaState() {
+            msgPandaState.pandaStates.get(0).setPandaType(Definitions.PandaState.PandaType.RED_PANDA);
+            msgPandaState.pandaStates.get(0).setControlsAllowed(true);
+            msgPandaState.pandaStates.get(0).setHeartbeatLost(false);
+            msgPandaState.pandaStates.get(0).setHarnessStatus(ai.flow.definitions.Definitions.PandaState.HarnessStatus.NORMAL);
+            msgPandaState.pandaStates.get(0).setIgnitionCan(true);
+            msgPandaState.pandaStates.get(0).setFaultStatus(ai.flow.definitions.Definitions.PandaState.FaultStatus.NONE);
+            // msgPandaState.pandaStates.get(0).setSafetyModel(ai.flow.definitions.CarDefinitions.CarParams.SafetyModel.NISSAN);
+            msgPandaState.pandaStates.get(0).setIgnitionLine(false);
+            // msgPandaState.pandaStates.get(0).setCurrent(3);
+            // msgPandaState.pandaStates.get(0).setVoltage(0);
+        }
+
+        public void run() {
+            try {
+                while (true) {
+                    lastCanDataTime = System.currentTimeMillis();
+
+                    ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
+                    
+                    // Runs at 2hz which is 500ms - [time it take for publishBuffer]
+                    Thread.sleep(500 - (System.currentTimeMillis() - lastCanDataTime));
+                }
+            } catch (Exception e) {
+                Log.i(TAG, "Exception in DummyPandaInstance run: " + e);
+            }
+        }
     }
 }
