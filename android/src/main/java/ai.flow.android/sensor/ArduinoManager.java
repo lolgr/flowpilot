@@ -30,6 +30,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
 import ai.flow.sensor.messages.MsgCanData;
 import ai.flow.sensor.messages.MsgPandaState;
+import ai.flow.sensor.messages.MsgPeripheralState;
+import ai.flow.sensor.messages.MsgDriverMonitoringState;
+import ai.flow.sensor.messages.MsgGpsLocationExternal;
+import ai.flow.sensor.messages.MsgGyroscope;
+import ai.flow.sensor.messages.MsgAccelerometer;
+import ai.flow.sensor.messages.MsgDriverState;
+
 import ai.flow.definitions.Definitions;
 
 import com.hoho.android.usbserial.driver.UsbSerialPort;
@@ -77,7 +84,6 @@ public class ArduinoManager implements SensorInterface {
         {
             maybeRequestUSBPermission(usbDevice, ctx);
         }
-        Log.i("FlowPilot", "testing");
     }
 
     private BroadcastReceiver usbReceiver = new BroadcastReceiver() {
@@ -125,8 +131,6 @@ public class ArduinoManager implements SensorInterface {
                 SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, arduinoinstance);
                 usbIoManager.start();
 
-                ArduinoInstance.DummyPandaInstance dummyPanda = arduinoinstance.new DummyPandaInstance();
-                dummyPanda.start();
 
             } catch (Exception e) {
                 Log.i(TAG, "Exception in onReceive usbReceiver: " + e);
@@ -161,16 +165,18 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
     private static final String TAG = "FlowPilot";
     private Activity activity;
     private static ZMQPubHandler ph = new ZMQPubHandler();
-    private MsgCanData msgCanData;
 
     public ArduinoInstance(Activity activity) {
         this.activity = activity;
-        msgCanData = new MsgCanData();
-        ph.createPublishers(Arrays.asList("can", "pandaStates"));
+        ph.createPublishers(Arrays.asList("can", "pandaStates", "gpsLocationExternal", "accelerometer", "gyroscope", "peripheralState", "driverState", "driverMonitoringState"));
+
+        ArduinoInstance.DummyPandaInstance dummyPanda = this.new DummyPandaInstance();
+        dummyPanda.start();
     }
 
     @Override
     public void onNewData(byte[] data) {
+
         if (data.length < 8) return;
 
         // First 4 bytes represent canid
@@ -196,10 +202,12 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         //     }
         // });
 
+        MsgCanData msgCanData = new MsgCanData(dlc);
+
         msgCanData.canData.get(0).setAddress(canId);
         msgCanData.canData.get(0).setSrc((byte)0);
-        msgCanData.canData.get(0).setBusTime((byte)0);
-        msgCanData.canData.get(0).setDat(canData);
+        msgCanData.canData.get(0).setBusTime((short)0);
+        // msgCanData.canData.get(0).setDat(canData);
         ph.publishBuffer("can", msgCanData.serialize(true));
     }
 
@@ -210,6 +218,12 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
 
     class DummyPandaInstance implements Runnable {
         private MsgPandaState msgPandaState;
+        private MsgPeripheralState msgPeripheralState;
+        private MsgGpsLocationExternal msgGpsLocationExternal;
+        private MsgAccelerometer msgAccelerometer;
+        private MsgGyroscope msgGyroscope;
+        private MsgDriverState msgDriverState;
+        private MsgDriverMonitoringState msgDriverMonitoringState;
         long lastCanDataTime;
 
         public DummyPandaInstance() { }
@@ -217,6 +231,20 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         public void start() {
             try {
                 msgPandaState = new MsgPandaState();
+                msgPeripheralState = new MsgPeripheralState();
+                msgGpsLocationExternal = new MsgGpsLocationExternal();
+                msgAccelerometer = new MsgAccelerometer();
+                msgGyroscope = new MsgGyroscope();
+                msgDriverState = new MsgDriverState();
+                msgDriverMonitoringState = new MsgDriverMonitoringState();
+
+                initPandaState();
+                initPeripheralState();
+                initGpsLocationExternal();
+                initAccelerometer();
+                initGyroscope();
+                initDriverState();
+                initDriverMonitoringState();
 
                 Thread dummyPandaState = new Thread(this);
                 dummyPandaState.start();
@@ -227,32 +255,107 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
 
         }
 
-        public void initPandaState() {
-            msgPandaState.pandaStates.get(0).setPandaType(Definitions.PandaState.PandaType.RED_PANDA);
-            msgPandaState.pandaStates.get(0).setControlsAllowed(true);
-            msgPandaState.pandaStates.get(0).setHeartbeatLost(false);
-            msgPandaState.pandaStates.get(0).setHarnessStatus(ai.flow.definitions.Definitions.PandaState.HarnessStatus.NORMAL);
-            msgPandaState.pandaStates.get(0).setIgnitionCan(true);
-            msgPandaState.pandaStates.get(0).setFaultStatus(ai.flow.definitions.Definitions.PandaState.FaultStatus.NONE);
-            // msgPandaState.pandaStates.get(0).setSafetyModel(ai.flow.definitions.CarDefinitions.CarParams.SafetyModel.NISSAN);
-            msgPandaState.pandaStates.get(0).setIgnitionLine(false);
-            // msgPandaState.pandaStates.get(0).setCurrent(3);
-            // msgPandaState.pandaStates.get(0).setVoltage(0);
-        }
-
         public void run() {
             try {
                 while (true) {
-                    lastCanDataTime = System.currentTimeMillis();
+                    //TODO: fix frequency issue - doesn't account for function runtime or modulus (could skip messages)
 
-                    ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
-                    
-                    // Runs at 2hz which is 500ms - [time it take for publishBuffer]
-                    Thread.sleep(500 - (System.currentTimeMillis() - lastCanDataTime));
+                    if (System.currentTimeMillis() % 500L == 0) {
+                        // Runs at 2hz which is 500ms
+                        ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
+                        ph.publishBuffer("peripheralState", msgPeripheralState.serialize(true));
+                    }
+
+                    if (System.currentTimeMillis() % 100L == 0) {
+                        // Runs at 10hz which is 100ms
+                        ph.publishBuffer("gpsLocationExternal", msgGpsLocationExternal.serialize(true));
+                        ph.publishBuffer("driverState", msgDriverState.serialize(true));
+                        ph.publishBuffer("driverMonitoringState", msgDriverMonitoringState.serialize(true));
+                    }
+
+                    if (System.currentTimeMillis() % 10L == 0) {
+                        // Runs at 100hz which is 10ms
+                        msgAccelerometer.accelerometer.setTimestamp(System.currentTimeMillis());
+                        msgGyroscope.gyroscope.setTimestamp(System.currentTimeMillis());
+
+                        ph.publishBuffer("accelerometer", msgAccelerometer.serialize(true));
+                        ph.publishBuffer("gyroscope", msgGyroscope.serialize(true));
+                    }
                 }
             } catch (Exception e) {
                 Log.i(TAG, "Exception in DummyPandaInstance run: " + e);
             }
+        }
+
+        public void initPandaState() {
+            msgPandaState.pandaStates.get(0).setPandaType(Definitions.PandaState.PandaType.BLACK_PANDA);
+            msgPandaState.pandaStates.get(0).setControlsAllowed(true);
+            msgPandaState.pandaStates.get(0).setSafetyModel(ai.flow.definitions.CarDefinitions.CarParams.SafetyModel.HONDA_NIDEC);
+            msgPandaState.pandaStates.get(0).setIgnitionLine(true);
+
+            // msgPandaState.pandaStates.get(0).setHeartbeatLost(false);
+            // msgPandaState.pandaStates.get(0).setHarnessStatus(ai.flow.definitions.Definitions.PandaState.HarnessStatus.NORMAL);
+            // msgPandaState.pandaStates.get(0).setIgnitionCan(true);
+            // msgPandaState.pandaStates.get(0).setFaultStatus(ai.flow.definitions.Definitions.PandaState.FaultStatus.NONE);
+
+            // msgPandaState.pandaStates.get(0).setCurrent(3);
+            // msgPandaState.pandaStates.get(0).setVoltage(0);
+        }
+
+        public void initPeripheralState() {
+            msgPeripheralState.peripheralState.setPandaType(ai.flow.definitions.Definitions.PandaState.PandaType.BLACK_PANDA);
+            msgPeripheralState.peripheralState.setVoltage(12000);
+            msgPeripheralState.peripheralState.setCurrent(5678);
+            msgPeripheralState.peripheralState.setFanSpeedRpm((short)1000);
+        }
+
+        public void initGpsLocationExternal() {
+            msgGpsLocationExternal.gpsLocationExternal.setUnixTimestampMillis((long)(System.currentTimeMillis()));
+            msgGpsLocationExternal.gpsLocationExternal.setFlags((short)1);
+            msgGpsLocationExternal.gpsLocationExternal.setAccuracy(1.0f);
+            msgGpsLocationExternal.gpsLocationExternal.setVerticalAccuracy(1.0f);
+            msgGpsLocationExternal.gpsLocationExternal.setSpeedAccuracy(0.1f);
+            msgGpsLocationExternal.gpsLocationExternal.setBearingAccuracyDeg(0.1f);
+
+            msgGpsLocationExternal.gpsLocationExternal.initVNED(3);
+            msgGpsLocationExternal.gpsLocationExternal.getVNED().set(0, 0.0f);
+            msgGpsLocationExternal.gpsLocationExternal.getVNED().set(1, 0.0f);
+            msgGpsLocationExternal.gpsLocationExternal.getVNED().set(2, 0.0f);
+
+            msgGpsLocationExternal.gpsLocationExternal.setBearingDeg(0.0f);
+            msgGpsLocationExternal.gpsLocationExternal.setLatitude(20.0);
+            msgGpsLocationExternal.gpsLocationExternal.setLongitude(30.0);
+            msgGpsLocationExternal.gpsLocationExternal.setAltitude(1000.0);
+            msgGpsLocationExternal.gpsLocationExternal.setSpeed(20.0f);
+            msgGpsLocationExternal.gpsLocationExternal.setSource(Definitions.GpsLocationData.SensorSource.UBLOX);
+        }
+
+        public void initAccelerometer() {
+            msgAccelerometer.accelerometer.setSensor((byte)4);
+            msgAccelerometer.accelerometer.setType((byte)0x10);
+            msgAccelerometer.accelerometer.getAcceleration().initV(3);
+            msgAccelerometer.accelerometer.getAcceleration().getV().set(0, 0.0f);
+            msgAccelerometer.accelerometer.getAcceleration().getV().set(1, 0.0f);
+            msgAccelerometer.accelerometer.getAcceleration().getV().set(2, 0.0f);
+        }
+
+        public void initGyroscope() {
+            msgGyroscope.gyroscope.setSensor((byte)5);
+            msgGyroscope.gyroscope.setType((byte)0x10);
+            msgGyroscope.gyroscope.getGyro().initV(3);
+            msgGyroscope.gyroscope.getGyro().getV().set(0, 0.0f);
+            msgGyroscope.gyroscope.getGyro().getV().set(1, 0.0f);
+            msgGyroscope.gyroscope.getGyro().getV().set(2, 0.0f);
+        }
+
+        public void initDriverState() {
+            msgDriverState.driverState.getLeftDriverData().setFaceProb(1.0f);
+        }
+
+        public void initDriverMonitoringState() {
+            msgDriverMonitoringState.driverMonitoringState.setFaceDetected(true);
+            msgDriverMonitoringState.driverMonitoringState.setIsDistracted(false);
+            msgDriverMonitoringState.driverMonitoringState.setAwarenessStatus(1.0f);
         }
     }
 }
