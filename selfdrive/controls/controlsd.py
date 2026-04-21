@@ -1,6 +1,7 @@
 import os
 import gc
 import math
+import time
 from typing import SupportsFloat
 from common.numpy_fast import interp
 
@@ -756,6 +757,12 @@ class Controls:
 
 
 def main(sm=None, pm=None, logcan=None):
+  # while True:
+  #   pm = messaging.PubMaster(['controlsState'])
+  #   dat = messaging.new_message('controlsState')
+  #   pm.send('controlsState', dat)
+  #   time.sleep(1)
+
   controls = Controls(sm, pm, logcan)
   controls.controlsd_thread()
 
