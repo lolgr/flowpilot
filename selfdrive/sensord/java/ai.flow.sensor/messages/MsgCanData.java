@@ -8,14 +8,21 @@ public class MsgCanData extends MessageBase {
 
     public MsgCanData() {
         super();
-        initFields();
+        initFields(8);
         bytesSerializedForm = computeSerializedMsgBytes();
         initSerializedBuffer();
     }
 
-    private void initFields(){
+    public MsgCanData(int datSize) {
+        super();
+        initFields(datSize);
+        bytesSerializedForm = computeSerializedMsgBytes();
+        initSerializedBuffer();
+    }
+
+    private void initFields(int datSize){
         event = messageBuilder.initRoot(Definitions.Event.factory);
         canData = event.initCan(1);
-        canData.get(0).initDat(8);
+        canData.get(0).initDat(datSize);
     }
 }
