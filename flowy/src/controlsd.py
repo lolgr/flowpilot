@@ -14,6 +14,10 @@ params = Params()
 
 from selfdrive.controls.controlsd import main
 
+# Always true IsOnroad for debugging
+params.put_bool("IsOnroad", True)
+params.put_bool("IsOffroad", False)
+
 while True:
     controlsd_onroad = params.get_bool("IsOnroad")
     if controlsd_onroad:
