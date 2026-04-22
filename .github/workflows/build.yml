@@ -1,38 +1,66 @@
 name: Build
+
 on: 
   push:
-    branches:
-      - master
+    branches: [master]
   workflow_dispatch:
-    inputs:
-      name:
-        description: 'trigger to build'
-        required: true
-        default: 'run'
+
 jobs:
   build:
     runs-on: ubuntu-24.04
+
     steps:
-    - name: Check out repository code
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
         submodules: true
+
+    # 🔹 Cache Gradle (dependencies + wrapper)
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+
+    # 🔹 Cache Android build outputs (optional but useful)
+    - name: Cache Android build
+      uses: actions/cache@v4
+      with:
+        path: |
+          android/.gradle
+          android/build
+        key: ${{ runner.os }}-android-${{ hashFiles('android/**/*.gradle*') }}
+        restore-keys: |
+          ${{ runner.os }}-android-
+
+    # 🔹 Cache Docker layers (if build_env.sh builds Docker)
+    - name: Cache Docker layers
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.docker-cache
+        key: ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'build_env.sh') }}
+        restore-keys: |
+          ${{ runner.os }}-docker-
 
     - name: Build Docker image
       run: |
         ./build_env.sh
 
-    - name: Build apk
+    - name: Build APK
       run: |
         ./build.sh full
 
-    - name: Archive apk
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: android-release.apk
         path: android/build/outputs/apk/release/android-release.apk
 
-    - name: Archive libs
+    - name: Upload libs
       uses: actions/upload-artifact@v4
       with:
         name: libs
