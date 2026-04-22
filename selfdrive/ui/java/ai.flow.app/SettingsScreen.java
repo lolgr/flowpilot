@@ -27,9 +27,12 @@ import static ai.flow.app.FlowUI.getPaddedButton;
 
 import java.util.ArrayList;
 
+import ai.flow.app.CloudLogConsole;
+
 
 public class SettingsScreen extends ScreenAdapter {
 
+    CloudLogConsole console;
     FlowUI appContext;
     ParamsInterface params = ParamsInterface.getInstance();
     Stage stage;
@@ -213,6 +216,19 @@ public class SettingsScreen extends ScreenAdapter {
         settingTable.add(buttonVehicles).pad(10 * heightScale).align(Align.right);
         settingTable.row();
 
+        TextButton buttonCloudLogs = getPaddedButton("CloudLogs", appContext.skin, "no-bg-bold", 5);
+        console = new CloudLogConsole(appContext);
+        buttonCloudLogs.addListener(new ClickListener() {
+            @Override
+            public void clicked(InputEvent event, float x, float y) {
+                // Console will keep running until stopConsole is called; currentSettingTable is updated
+                console.startConsole(currentSettingTable);
+                console.fillConsoleSettings();
+            }
+        });
+        settingTable.add(buttonCloudLogs).pad(10 * heightScale).align(Align.right);
+        settingTable.row();
+
         buttonCalibrate = getPaddedButton("RESET", appContext.skin, 5);
         buttonCalibrate.addListener(new ClickListener() {
             @Override
@@ -338,7 +354,7 @@ public class SettingsScreen extends ScreenAdapter {
 
         fillDeviceSettings();
 
-        ButtonGroup buttonGroup = new ButtonGroup(buttonDevice, buttonSoftware, buttonToggle, buttonVehicles);
+        ButtonGroup buttonGroup = new ButtonGroup(buttonDevice, buttonSoftware, buttonToggle, buttonVehicles, buttonCloudLogs);
         buttonGroup.setMaxCheckCount(1);
         buttonGroup.setUncheckLast(true);
 

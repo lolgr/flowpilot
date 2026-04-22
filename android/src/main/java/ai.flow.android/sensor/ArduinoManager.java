@@ -275,8 +275,8 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
 
                     if (System.currentTimeMillis() % 10L == 0) {
                         // Runs at 100hz which is 10ms
-                        msgAccelerometer.accelerometer.setTimestamp(System.currentTimeMillis());
-                        msgGyroscope.gyroscope.setTimestamp(System.currentTimeMillis());
+                        // msgAccelerometer.accelerometer.setTimestamp(System.currentTimeMillis());
+                        // msgGyroscope.gyroscope.setTimestamp(System.currentTimeMillis());
 
                         ph.publishBuffer("accelerometer", msgAccelerometer.serialize(true));
                         ph.publishBuffer("gyroscope", msgGyroscope.serialize(true));

@@ -487,7 +487,7 @@ public class OnRoadScreen extends ScreenAdapter {
         animationNight = GifDecoder.loadGIFAnimation(Animation.PlayMode.LOOP, Gdx.files.internal("gifs/night.gif").read());
 
         sh = new ZMQSubHandler(true);
-        sh.createSubscribers(Arrays.asList("lateralPlan", cameraTopic, cameraBufferTopic, deviceStateTopic, calibrationTopic, carStateTopic, controlsStateTopic, modelTopic, "roadCameraBuffer", "roadCameraState"));
+        sh.createSubscribers(Arrays.asList("peripheralState", "pandaStates", "can", "lateralPlan", cameraTopic, cameraBufferTopic, deviceStateTopic, calibrationTopic, carStateTopic, controlsStateTopic, modelTopic, "roadCameraBuffer", "roadCameraState"));
     }
 
     public static boolean HideInfoTable;
@@ -568,18 +568,22 @@ public class OnRoadScreen extends ScreenAdapter {
 
     public void updateControls() {
         controlState = sh.recv(controlsStateTopic).getControlsState();
-        canErrCount = controlState.getCanErrorCounter();
 
-        if (canErrCount != canErrCountPrev) {
-            canMisses++;
-            if (canMisses > 20)
-                updateStatusLabel(statusLabelCan, "CAN\nOFFLINE", StatusColors.colorStatusCritical);
-        }
-        else{
-            updateStatusLabel(statusLabelCan, "CAN\nONLINE", StatusColors.colorStatusGood);
-            canMisses = 0;
-        }
-        canErrCountPrev = canErrCount;
+        updateStatusLabel(statusLabelCan, "CAN\nONLINE", StatusColors.colorStatusGood);
+        canErrCount = 0;
+
+        // canErrCount = controlState.getCanErrorCounter();
+
+        // if (canErrCount != canErrCountPrev) {
+        //     canMisses++;
+        //     if (canMisses > 20)
+        //         updateStatusLabel(statusLabelCan, "CAN\nOFFLINE", StatusColors.colorStatusCritical);
+        // }
+        // else{
+        //     updateStatusLabel(statusLabelCan, "CAN\nONLINE", StatusColors.colorStatusGood);
+        //     canMisses = 0;
+        // }
+        // canErrCountPrev = canErrCount;
     }
 
     public void updateModelOutputs(){
@@ -763,6 +767,8 @@ public class OnRoadScreen extends ScreenAdapter {
         stageSettings.getViewport().update(width, height);
     }
 
+    boolean testing = false;
+
     @Override
     public void render(float delta) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1);
@@ -844,6 +850,37 @@ public class OnRoadScreen extends ScreenAdapter {
         stageSettings.getViewport().apply();
         stageSettings.act(delta);
         stageSettings.draw();
+
+        if (sh.updated("controlsState") || testing == true) {
+            testing = true;
+            batch.begin();
+            appContext.font.setColor(1, 1, 1, 1);
+            appContext.font.draw(batch, "controlsState", Gdx.graphics.getWidth() - 500f, Gdx.graphics.getHeight() - 20f);
+            batch.end();
+        }
+        
+        if (sh.updated("can")) {
+            batch.begin();
+            appContext.font.setColor(1, 1, 1, 1);
+            int canData = sh.recv("can").getCan().get(0).getAddress();
+            appContext.font.draw(batch, String.valueOf(canData) + "Can Received", Gdx.graphics.getWidth() - 500f, Gdx.graphics.getHeight() - 20f);
+            batch.end();
+        }
+
+        if (sh.updated("pandaStates")) {
+            batch.begin();
+            appContext.font.setColor(1, 1, 1, 1);
+            boolean controlsAllowed = sh.recv("pandaStates").getPandaStates().get(0).getControlsAllowed();
+            appContext.font.draw(batch, String.valueOf(controlsAllowed), Gdx.graphics.getWidth() - 500f, Gdx.graphics.getHeight() - 90f);
+            batch.end();
+        }
+
+        if (sh.updated("peripheralState")) {
+            batch.begin();
+            appContext.font.setColor(1, 1, 1, 1);
+            appContext.font.draw(batch, "peripheralState", Gdx.graphics.getWidth() - 500f, Gdx.graphics.getHeight() - 160f);
+            batch.end();
+        }
 
         if (sh.updated(calibrationTopic)) {
             Definitions.LiveCalibrationData.Reader liveCalib = sh.recv(calibrationTopic).getLiveCalibration();
