@@ -2,7 +2,7 @@ name: Build
 
 on: 
   push:
-    branches: [master]
+    branches: [lg-g8-arduinopanda]
   workflow_dispatch:
 
 jobs:
