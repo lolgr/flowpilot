@@ -56,21 +56,25 @@ public class SettingsScreen extends ScreenAdapter {
     public java.util.List<TextButton> ToggleButtons = new ArrayList<>();
 
     public void addKeyValueTable(Table table, String key, String value, boolean addLine) {
+        table.row();
+        table.row();
         table.add(new Label(key, appContext.skin, "default-font", "white")).left();//.pad(30 * heightScale);
-        table.add(new Label(value, appContext.skin, "default-font", "white")).right();//.pad(30 * heightScale);
+        table.add(new Label(value, appContext.skin, "default-font", "white")).right().padRight(70 * widthScale);
         if (addLine) {
             table.row();
-            table.add(new Image(lineTex)).colspan(2).pad(10*heightScale, 0, 10*heightScale, 0).height(1*heightScale);
+            table.add(new Image(lineTex)).colspan(2).pad(20*heightScale, 0, 10*heightScale, 80*widthScale).height(1*heightScale);
             table.row();
         }
     }
 
     public void addKeyValueTable(Table table, String key, Button value, boolean addLine) {
+        table.row();
+        table.row();
         table.add(new Label(key, appContext.skin, "default-font", "white")).left();//.pad(30 * heightScale);
-        table.add(value).right();//.pad(30 * heightScale);
+        table.add(value).right().padRight(70 * widthScale);
         if (addLine) {
             table.row();
-            table.add(new Image(lineTex)).colspan(2).pad(10*heightScale, 0, 10*heightScale, 0).height(1*heightScale);
+            table.add(new Image(lineTex)).colspan(2).pad(20*heightScale, 0, 10*heightScale, 80*widthScale).height(1*heightScale);
             table.row();
         }
         else
@@ -117,8 +121,16 @@ public class SettingsScreen extends ScreenAdapter {
 
     public void fillToggleSettings(){
         currentSettingTable.clear();
+        scrollPane.setScrollingDisabled(true, false);
+        float toggleSize = 60 * heightScale;
         for (int i=0; i<ToggleButtons.size(); i++) {
-            addKeyValueTable(currentSettingTable, AdditionalToggles.get(i*2), ToggleButtons.get(i), true);
+            currentSettingTable.row();
+            currentSettingTable.row();
+            currentSettingTable.add(new Label(AdditionalToggles.get(i*2), appContext.skin, "default-font", "white")).left();
+            currentSettingTable.add(ToggleButtons.get(i)).right().padRight(70 * widthScale).size(toggleSize, toggleSize);
+            currentSettingTable.row();
+            currentSettingTable.add(new Image(lineTex)).colspan(2).pad(20*heightScale, 0, 10*heightScale, 80*widthScale).height(1*heightScale);
+            currentSettingTable.row();
         }
     }
 
@@ -156,7 +168,7 @@ public class SettingsScreen extends ScreenAdapter {
         currentSettingTable.setFillParent(true);
 
         rootTable.add(settingTable);
-        rootTable.add(scrollTable).pad(10 * heightScale).padLeft(20 * widthScale);
+        rootTable.add(scrollTable).pad(10 * heightScale).padLeft(40 * widthScale);
 
         scrollPane = new ScrollPane(currentSettingTable);
         scrollPane.setSmoothScrolling(true);
@@ -217,12 +229,12 @@ public class SettingsScreen extends ScreenAdapter {
         settingTable.row();
 
         TextButton buttonCloudLogs = getPaddedButton("CloudLogs", appContext.skin, "no-bg-bold", 5);
-        console = new CloudLogConsole(appContext);
+        console = new CloudLogConsole(appContext, currentSettingTable);
         buttonCloudLogs.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 // Console will keep running until stopConsole is called; currentSettingTable is updated
-                console.startConsole(currentSettingTable);
+                console.startConsole();
                 console.fillConsoleSettings();
             }
         });
