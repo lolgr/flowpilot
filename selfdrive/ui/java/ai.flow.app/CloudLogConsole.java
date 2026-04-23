@@ -3,7 +3,6 @@ package ai.flow.app;
 import ai.flow.app.helpers.Utils;
 import ai.flow.common.transformations.Camera;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Gdx.app.postRunnable;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
@@ -35,7 +34,6 @@ import java.util.Arrays;
 import messaging.ZMQSubHandler;
 
 public class CloudLogConsole implements Runnable {
-
     FlowUI appContext;
     ParamsInterface params = ParamsInterface.getInstance();
     Stage stage;
@@ -50,17 +48,24 @@ public class CloudLogConsole implements Runnable {
     Table cloudlogTable;
 
     Thread consoleThead;
+    Label messages;
 
     Texture lineTex = Utils.getLineTexture(Math.round(700*widthScale), Math.round(1*heightScale), Color.WHITE);
 
-    public CloudLogConsole(FlowUI appContext) {
+    public CloudLogConsole(FlowUI appContext, Table cloudlogTable) {
         this.appContext = appContext;
+        this.cloudlogTable = cloudlogTable;
 
         stage = new Stage(new ScreenViewport());
         batch = new SpriteBatch();
 
+        messages = new Label("", appContext.skin, "default-font-30", "white");
+        messages.setWrap(true);
+
         sh = new ZMQSubHandler(true);
         sh.createSubscribers(Arrays.asList("logMessage", "errorLogMessage"));
+
+        addLogMessage("CloudLog Console...\n\n\n\n");
     }
 
     public boolean consoleStarted() {
@@ -68,53 +73,78 @@ public class CloudLogConsole implements Runnable {
     }
 
     // Should be called from SettingsScreen; starts consoleThread
-    public void startConsole(Table cloudlogTable) {
-        this.cloudlogTable = cloudlogTable;
+    public void startConsole() {
         if (consoleStarted()) return;
-
 
         consoleThead = new Thread(this);
         consoleThead.start();
     }
 
+    // Adds a log message to the messages label
+    public void addLogMessage(String newLog) {
+        StringBuilder builder = new StringBuilder(messages.getText());
+        builder.append(newLog);
+        builder.append("\n");
+        messages.setText(builder.toString());
+    }
+
+    // Clears the table and adds console specific elements
     public void fillConsoleSettings() {
         cloudlogTable.clear();
 
-        TextField.TextFieldStyle style = new TextField.TextFieldStyle(appContext.skin.get(TextField.TextFieldStyle.class));
-        style.font = appContext.skin.getFont("default-font-20");
-        style.fontColor = Color.WHITE;
-        style.background = createRoundedDrawable(new Color(0.15f, 0.15f, 0.15f, 1f), 15);
+        Actor ancestor = cloudlogTable.getParent();
+        while (ancestor != null && !(ancestor instanceof ScrollPane)) {
+            ancestor = ancestor.getParent();
+        }
+        if (ancestor != null) {
+            ((ScrollPane) ancestor).setScrollingDisabled(true, true);
+        }
 
-        TextArea textArea = new TextArea("Testing", style);
+        Table titleTable = new Table();
+        Table logTable = new Table();
+        cloudlogTable.add(titleTable).width(800 * widthScale).height(65 * heightScale).bottom().row();
+        cloudlogTable.add(logTable).width(800 * widthScale).expand().fill().pad(20 * heightScale, 0, 0, 0);
 
-        cloudlogTable.row();
-        cloudlogTable.add(textArea).expand().fill().pad(10);
-        cloudlogTable.row();
-    }
+        Label title = new Label("CloudLog Console", appContext.skin, "default-font-bold-med", "white");
 
-    private NinePatchDrawable createRoundedDrawable(Color color, int radius) {
-        int size = radius * 2 + 1;
-        Pixmap pixmap = new Pixmap(size, size, Pixmap.Format.RGBA8888);
-        pixmap.setColor(0f, 0f, 0f, 0f);
-        pixmap.fill();
-        pixmap.setColor(color);
-        pixmap.fillCircle(radius, radius, radius);
-        Texture texture = new Texture(pixmap);
-        texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        pixmap.dispose();
-        return new NinePatchDrawable(new NinePatch(texture, radius, radius, radius, radius));
+        titleTable.bottom();
+        titleTable.add(title).center().padTop(20 * heightScale).fillX().row();
+
+        messages.setAlignment(Align.topLeft);
+        Table logContent = new Table();
+        logContent.top().left();
+        logContent.add(messages).expand().fill().left().top().pad(10 * heightScale, 15 * widthScale, 10 * heightScale, 15 * widthScale);
+
+        ScrollPane logScrollPane = new ScrollPane(logContent, appContext.skin);
+        logScrollPane.setSmoothScrolling(true);
+        logScrollPane.setFadeScrollBars(false);
+        logScrollPane.setScrollingDisabled(true, false);
+
+        logTable.add(logScrollPane).expand().fill().top();
     }
 
     // Runnable override; runs on thread start
     @Override
     public void run() {
-        fillConsoleSettings();
-
-        while (true);
+        while (true) {
+            try {
+                if (sh.updated("logMessage")) {
+                    String msg = sh.recv("logMessage").getLogMessage().toString();
+                    Gdx.app.postRunnable(() -> addLogMessage(msg));
+                }
+                if (sh.updated("errorLogMessage")) {
+                    String msg = sh.recv("errorLogMessage").getLogMessage().toString();
+                    Gdx.app.postRunnable(() -> addLogMessage(msg));
+                }
+                Thread.sleep(50);
+            } catch (Exception e) {
+                Gdx.app.postRunnable(() -> addLogMessage("Exception in CloudLogConsole run:" + e));
+            }
+        }
     }
 
     // Should be called from SettingsScreen; stops consoleThread
     public void stopConsole() {
-
+        
     }
 }
