@@ -1,6 +1,6 @@
 name: Build
 
-on: 
+on:
   push:
     branches: [master]
   workflow_dispatch:
@@ -15,40 +15,81 @@ jobs:
       with:
         submodules: true
 
-    # 🔹 Cache Gradle (dependencies + wrapper)
-    - name: Cache Gradle
+    # Cache the `builder` Docker image (apt install + pip + capnproto-java build).
+    # Invalidates when the Dockerfile or any file copied into the image changes.
+    - name: Cache Docker builder image
+      id: cache-docker
+      uses: actions/cache@v4
+      with:
+        path: /tmp/docker-builder.tar
+        key: ${{ runner.os }}-docker-builder-${{ hashFiles('docker/Dockerfile', 'docker/capnproto-java/**') }}
+
+    - name: Load cached Docker image
+      if: steps.cache-docker.outputs.cache-hit == 'true'
+      run: docker load --input /tmp/docker-builder.tar
+
+    - name: Build Docker image
+      if: steps.cache-docker.outputs.cache-hit != 'true'
+      run: |
+        ./build_env.sh
+        docker save builder -o /tmp/docker-builder.tar
+
+    # Buildozer cache — Android SDK, NDK r28c, and python deps (multi-GB).
+    # Mounted into the container at /root/.buildozer by build.sh.
+    # Keyed on buildozer.spec since that controls SDK/NDK/requirement versions.
+    - name: Cache buildozer (Android SDK/NDK + python deps)
+      uses: actions/cache@v4
+      with:
+        path: cache/buildozer
+        key: ${{ runner.os }}-buildozer-${{ hashFiles('flowy/buildozer.spec') }}
+        restore-keys: |
+          ${{ runner.os }}-buildozer-
+
+    # Gradle dependency cache — mounted into the container at /root/.gradle by build.sh.
+    # Caching ~/.gradle on the runner host is useless since gradle runs in Docker.
+    - name: Cache Gradle dependencies (in-container ~/.gradle)
+      uses: actions/cache@v4
+      with:
+        path: cache/gradle
+        key: ${{ runner.os }}-gradle-deps-${{ hashFiles('android/**/*.gradle', 'android/**/*.gradle.kts', 'cereal/**/*.gradle', 'common/**/*.gradle', 'flowy/**/*.gradle', 'selfdrive/**/*.gradle', 'system/**/*.gradle', 'gradle/wrapper/gradle-wrapper.properties', 'selfdrive/sensord/gradle/wrapper/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-deps-
+
+    # Local buildozer state — `build.sh` checks `flowy/.buildozer` to decide
+    # whether to run the slow first-time build. Cache flowy/bin so the AAR
+    # survives between runs.
+    - name: Cache flowy buildozer state and AAR output
       uses: actions/cache@v4
       with:
         path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          flowy/.buildozer
+          flowy/bin
+        key: ${{ runner.os }}-flowy-${{ hashFiles('flowy/buildozer.spec', 'flowy/src/**', 'flowy/recipes/**') }}
         restore-keys: |
-          ${{ runner.os }}-gradle-
+          ${{ runner.os }}-flowy-
 
-    # 🔹 Cache Android build outputs (optional but useful)
-    - name: Cache Android build
+    # Gradle build outputs (incremental compilation state).
+    - name: Cache Android gradle build outputs
       uses: actions/cache@v4
       with:
         path: |
           android/.gradle
           android/build
-        key: ${{ runner.os }}-android-${{ hashFiles('android/**/*.gradle*') }}
+        key: ${{ runner.os }}-android-build-${{ hashFiles('android/**/*.gradle', 'android/**/*.gradle.kts', 'android/AndroidManifest.xml', 'android/project.properties', 'android/src/**', 'android/res/**') }}
         restore-keys: |
-          ${{ runner.os }}-android-
+          ${{ runner.os }}-android-build-
 
-    # 🔹 Cache Docker layers (if build_env.sh builds Docker)
-    - name: Cache Docker layers
+    # SCons signature DB — enables incremental native builds across CI runs.
+    - name: Cache SCons signature DB
       uses: actions/cache@v4
       with:
-        path: /tmp/.docker-cache
-        key: ${{ runner.os }}-docker-${{ hashFiles('Dockerfile', 'build_env.sh') }}
+        path: .sconsign.dblite
+        key: ${{ runner.os }}-sconsign-${{ hashFiles('SConstruct', 'SConscript', 'cereal/**/SConscript', 'common/**/SConscript', 'opendbc/**/SConscript', 'panda/**/SConscript', 'selfdrive/**/SConscript', 'system/**/SConscript', 'third_party/**/SConscript', 'wrappers/**/SConscript') }}
         restore-keys: |
-          ${{ runner.os }}-docker-
+          ${{ runner.os }}-sconsign-
 
-    - name: Build Docker image
-      run: |
-        ./build_env.sh
+    - name: Build Docker image (ensure available)
+      run: docker image inspect builder >/dev/null 2>&1 || ./build_env.sh
 
     - name: Build APK
       run: |
