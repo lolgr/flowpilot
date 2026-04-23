@@ -27,9 +27,12 @@ import static ai.flow.app.FlowUI.getPaddedButton;
 
 import java.util.ArrayList;
 
+import ai.flow.app.CloudLogConsole;
+
 
 public class SettingsScreen extends ScreenAdapter {
 
+    CloudLogConsole console;
     FlowUI appContext;
     ParamsInterface params = ParamsInterface.getInstance();
     Stage stage;
@@ -363,7 +366,7 @@ public class SettingsScreen extends ScreenAdapter {
 
         fillDeviceSettings();
 
-        ButtonGroup buttonGroup = new ButtonGroup(buttonDevice, buttonSoftware, buttonToggle, buttonVehicles);
+        ButtonGroup buttonGroup = new ButtonGroup(buttonDevice, buttonSoftware, buttonToggle, buttonVehicles, buttonCloudLogs);
         buttonGroup.setMaxCheckCount(1);
         buttonGroup.setUncheckLast(true);
 
