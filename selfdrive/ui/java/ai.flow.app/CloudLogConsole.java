@@ -36,7 +36,6 @@ import messaging.ZMQSubHandler;
 public class CloudLogConsole implements Runnable {
     FlowUI appContext;
     ParamsInterface params = ParamsInterface.getInstance();
-    Stage stage;
     float uiWidth = Gdx.app.getGraphics().getWidth();
     float uiHeight = Gdx.app.getGraphics().getHeight();
     float widthScale = uiWidth / 1280;
@@ -44,7 +43,6 @@ public class CloudLogConsole implements Runnable {
 
     ZMQSubHandler sh;
 
-    SpriteBatch batch;
     Table cloudlogTable;
 
     Thread consoleThead;
@@ -56,16 +54,13 @@ public class CloudLogConsole implements Runnable {
         this.appContext = appContext;
         this.cloudlogTable = cloudlogTable;
 
-        stage = new Stage(new ScreenViewport());
-        batch = new SpriteBatch();
-
         messages = new Label("", appContext.skin, "default-font-30", "white");
         messages.setWrap(true);
 
         sh = new ZMQSubHandler(true);
         sh.createSubscribers(Arrays.asList("logMessage", "errorLogMessage"));
 
-        addLogMessage("CloudLog Console...\n\n\n\n");
+        addLogMessage("CloudLog started...\n");
     }
 
     public boolean consoleStarted() {
@@ -102,8 +97,8 @@ public class CloudLogConsole implements Runnable {
 
         Table titleTable = new Table();
         Table logTable = new Table();
-        cloudlogTable.add(titleTable).width(800 * widthScale).height(65 * heightScale).bottom().row();
-        cloudlogTable.add(logTable).width(800 * widthScale).expand().fill().pad(20 * heightScale, 0, 0, 0);
+        cloudlogTable.add(titleTable).width(800 * widthScale).height(75 * heightScale).bottom().row();
+        cloudlogTable.add(logTable).width(800 * widthScale).height(uiHeight - 100 * heightScale).fill().pad(20 * heightScale, 0, 0, 0);
 
         Label title = new Label("CloudLog Console", appContext.skin, "default-font-bold-med", "white");
 
@@ -126,8 +121,8 @@ public class CloudLogConsole implements Runnable {
     // Runnable override; runs on thread start
     @Override
     public void run() {
-        while (true) {
-            try {
+        try {
+            while (true) {
                 if (sh.updated("logMessage")) {
                     String msg = sh.recv("logMessage").getLogMessage().toString();
                     Gdx.app.postRunnable(() -> addLogMessage(msg));
@@ -136,15 +131,22 @@ public class CloudLogConsole implements Runnable {
                     String msg = sh.recv("errorLogMessage").getLogMessage().toString();
                     Gdx.app.postRunnable(() -> addLogMessage(msg));
                 }
-                Thread.sleep(50);
-            } catch (Exception e) {
-                Gdx.app.postRunnable(() -> addLogMessage("Exception in CloudLogConsole run:" + e));
+                Thread.sleep(100);
             }
+        } catch (Exception e) { 
+            Gdx.app.postRunnable(() -> addLogMessage("Exception in CloudLogConsole run: " + e));
         }
     }
 
     // Should be called from SettingsScreen; stops consoleThread
     public void stopConsole() {
-        
+        try {
+            consoleThead.interrupt();
+            consoleThead.join();
+
+        } catch (Exception e) { 
+            Thread.currentThread().interrupt();
+        }
+        consoleThead = null;
     }
 }
