@@ -43,6 +43,8 @@ import static android.os.Build.VERSION.SDK_INT;
 
 import org.kivy.android.PythonUtil;
 
+import ai.flow.app.CloudLogConsole;
+
 public class LoadingActivity extends AppCompatActivity {
 
     List<String> requiredPermissions = Arrays.asList(Manifest.permission.CAMERA,
@@ -59,6 +61,9 @@ public class LoadingActivity extends AppCompatActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Starts the static CloudLogConsole thread to ensure any early logs are captured
+        CloudLogConsole.start();
 
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE);
         Window window = getWindow();

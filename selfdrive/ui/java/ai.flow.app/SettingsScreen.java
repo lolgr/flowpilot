@@ -32,7 +32,6 @@ import ai.flow.app.CloudLogConsole;
 
 public class SettingsScreen extends ScreenAdapter {
 
-    CloudLogConsole console;
     FlowUI appContext;
     ParamsInterface params = ParamsInterface.getInstance();
     Stage stage;
@@ -229,13 +228,11 @@ public class SettingsScreen extends ScreenAdapter {
         settingTable.row();
 
         TextButton buttonCloudLogs = getPaddedButton("CloudLogs", appContext.skin, "no-bg-bold", 5);
-        console = new CloudLogConsole(appContext, currentSettingTable);
         buttonCloudLogs.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
-                // Console will keep running until stopConsole is called; currentSettingTable is updated
-                console.startConsole();
-                console.fillConsoleSettings();
+                // Displays the logs in currentSettingTable
+                CloudLogConsole.fillConsoleSettings(appContext, currentSettingTable);
             }
         });
         settingTable.add(buttonCloudLogs).pad(10 * heightScale).align(Align.right);
