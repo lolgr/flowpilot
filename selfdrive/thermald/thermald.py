@@ -16,9 +16,8 @@ from common.params import Params
 from common.realtime import DT_TRML, sec_since_boot
 from common.system import is_android, is_android_rooted
 from selfdrive.controls.lib.alertmanager import set_offroad_alert
-from system.hardware import HARDWARE
+# from system.hardware import HARDWARE
 # from selfdrive.loggerd.config import get_available_percent
-from selfdrive.statsd import statlog
 from system.swaglog import cloudlog
 
 ThermalStatus = log.DeviceState.ThermalStatus
@@ -194,7 +193,8 @@ def thermald_thread(end_event, hw_queue):
     set_offroad_alert_if_changed("Offroad_TemperatureTooHigh", (not onroad_conditions["device_temp_good"]))
 
     # Handle offroad/onroad transition
-    should_start = all(onroad_conditions.values())
+    # should_start = all(onroad_conditions.values())
+    should_start = True # Always true IsOnroad
     if started_ts is None:
       should_start = should_start and all(startup_conditions.values())
     
@@ -213,7 +213,7 @@ def thermald_thread(end_event, hw_queue):
 
       params.put_bool("IsEngaged", False)
       engaged_prev = False
-      HARDWARE.set_power_save(not should_start)
+      # HARDWARE.set_power_save(not should_start)
 
     if sm.updated['controlsState']:
       engaged = sm['controlsState'].enabled
@@ -280,6 +280,9 @@ def thermald_thread(end_event, hw_queue):
 
     count += 1
 
+    # NOTE: This service is mostly not implemented, for now 
+    # we disable after one run so that IsOnroad is set to true
+    break
 
 def main():
   hw_queue = queue.Queue(maxsize=1)
