@@ -4,6 +4,8 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.badlogic.gdx.scenes.scene2d.ui.*;
 import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.utils.JsonReader;
+import com.badlogic.gdx.utils.JsonValue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,6 +21,7 @@ public class CloudLogConsole implements Runnable {
     private Thread gdxUiThread;
 
     private static Label messagesLabel;
+    private static ScrollPane messagesScrollPane;
 
     public CloudLogConsole() { }
 
@@ -67,6 +70,13 @@ public class CloudLogConsole implements Runnable {
         }
 
         messagesLabel.setText(logs.toString());
+        messagesLabel.invalidateHierarchy();
+
+        if (messagesScrollPane != null) {
+            messagesScrollPane.layout();
+            messagesScrollPane.setScrollPercentY(1f);
+            messagesScrollPane.updateVisualScroll();
+        }
     }
 
     // Clears the table and adds console specific elements
@@ -119,12 +129,12 @@ public class CloudLogConsole implements Runnable {
         logContent.top().left();
         logContent.add(messagesLabel).expand().fill().left().top().pad(10 * heightScale, 15 * widthScale, 10 * heightScale, 15 * widthScale);
 
-        ScrollPane logScrollPane = new ScrollPane(logContent, appContext.skin);
-        logScrollPane.setSmoothScrolling(true);
-        logScrollPane.setFadeScrollBars(false);
-        logScrollPane.setScrollingDisabled(true, false);
+        messagesScrollPane = new ScrollPane(logContent, appContext.skin);
+        messagesScrollPane.setSmoothScrolling(true);
+        messagesScrollPane.setFadeScrollBars(false);
+        messagesScrollPane.setScrollingDisabled(true, false);
 
-        logTable.add(logScrollPane).expand().fill().top();
+        logTable.add(messagesScrollPane).expand().fill().top();
     }
 
     // Runnable override; runs on thread start
@@ -136,11 +146,15 @@ public class CloudLogConsole implements Runnable {
             while (true) {
                 if (sh.updated("logMessage")) {
                     String msg = sh.recv("logMessage").getLogMessage().toString();
-                    println(msg);
+
+                    JsonValue jsonValue = new JsonReader().parse(msg);
+                    println(jsonValue.get("filename").asString() + " " + jsonValue.get("msg").toString());
                 }
                 if (sh.updated("errorLogMessage")) {
                     String msg = sh.recv("errorLogMessage").getLogMessage().toString();
-                    println(msg);
+                    
+                    JsonValue jsonValue = new JsonReader().parse(msg);
+                    println(jsonValue.get("filename").asString() + " " + jsonValue.get("msg").toString());
                 }
                 // Thread.sleep(10);
             }
