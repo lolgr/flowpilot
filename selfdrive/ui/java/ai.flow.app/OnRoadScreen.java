@@ -225,7 +225,7 @@ public class OnRoadScreen extends ScreenAdapter {
         textLabel.setAlignment(Align.center);
         return new Stack(borderTexture, statusTexture, textLabel);
     }
-
+//ahsuhduhsadhua
     public void addNotification(String text){
         Image backgroundTexture = new Image(Utils.createRoundedRectangle(notificationWidth, 50, 2, new Color(224/255f, 18/255f, 18/255f, 0.7f)));
         // green 50, 168, 52

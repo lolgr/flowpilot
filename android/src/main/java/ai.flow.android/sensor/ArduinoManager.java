@@ -254,7 +254,7 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
             }
 
         }
-
+//ASdsdgysdaysgdyysagdygashduhaushd
         public void run() {
             try {
                 while (true) {
@@ -263,7 +263,7 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
                     if (System.currentTimeMillis() % 500L == 0) {
                         // Runs at 2hz which is 500ms
                         ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
-                        ph.publishBuffer("peripheralState", msgPeripheralState.serialize(true));
+                        // ph.publishBuffer("peripheralState", msgPeripheralState.serialize(true));
                     }
 
                     if (System.currentTimeMillis() % 100L == 0) {

@@ -82,6 +82,8 @@ def fingerprint(logcan, sendcan, num_pandas):
       fixed_fingerprint = fixed_fingerprint.decode("utf-8")
   ecu_rx_addrs = set()
 
+  cloudlog.info(f"fingerprint fixed_fingerprint: {fixed_fingerprint}")
+
   # just skip VIN to speed things up
   vin, vin_rx_addr = VIN_UNKNOWN, 0
   exact_fw_match, fw_candidates, car_fw = True, set(), []
@@ -154,6 +156,7 @@ def fingerprint(logcan, sendcan, num_pandas):
 
 def get_car(logcan, sendcan, experimental_long_allowed, num_pandas=1):
   candidate, fingerprints, vin, car_fw, source, exact_match = fingerprint(logcan, sendcan, num_pandas)
+  cloudlog.info(f"get_car start candidate: {candidate}")
 
   if candidate is None:
     cloudlog.event("car doesn't match any fingerprints", fingerprints=fingerprints, error=True)

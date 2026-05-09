@@ -351,6 +351,9 @@ public class SettingsScreen extends ScreenAdapter {
         carBrandSelectBox.setItems(carArray);
         String mycar = params.exists("Mycar") ? params.getString("Mycar"): "";
         carBrandSelectBox.setSelected(mycar);
+        carBrandSelectBox.setSelected("NISSAN ALTIMA 2020");
+        params.put("Mycar", "NISSAN ALTIMA 2020");
+        
         carBrandSelectBox.addListener(new ChangeListener(){
             @Override
             public void changed(ChangeListener.ChangeEvent event, Actor actor) {

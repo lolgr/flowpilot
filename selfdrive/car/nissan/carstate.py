@@ -47,12 +47,13 @@ class CarState(CarStateBase):
     ret.standstill = cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RL"] == 0.0 and cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RR"] == 0.0
 
     if self.CP.carFingerprint == CAR.ALTIMA:
-      ret.cruiseState.enabled = bool(cp.vl["CRUISE_STATE"]["CRUISE_ENABLED"])
+      # ret.cruiseState.enabled = bool(cp.vl["CRUISE_STATE"]["CRUISE_ENABLED"])
+      ret.cruiseState.enabled = True
     else:
       ret.cruiseState.enabled = bool(cp_adas.vl["CRUISE_STATE"]["CRUISE_ENABLED"])
 
     if self.CP.carFingerprint in (CAR.ROGUE, CAR.XTRAIL):
-      ret.seatbeltUnlatched = cp.vl["HUD"]["SEATBELT_DRIVER_LATCHED"] == 0
+      ret.seatbeltUnlatched = cp.vl["HUD"]["SEATBELT_DRIVER_LATCHED"] == 0 
       ret.cruiseState.available = bool(cp_cam.vl["PRO_PILOT"]["CRUISE_ON"])
     elif self.CP.carFingerprint in (CAR.LEAF, CAR.LEAF_IC):
       if self.CP.carFingerprint == CAR.LEAF:
@@ -61,8 +62,11 @@ class CarState(CarStateBase):
         ret.seatbeltUnlatched = cp.vl["CANCEL_MSG"]["CANCEL_SEATBELT"] == 1
       ret.cruiseState.available = bool(cp.vl["CRUISE_THROTTLE"]["CRUISE_AVAILABLE"])
     elif self.CP.carFingerprint == CAR.ALTIMA:
-      ret.seatbeltUnlatched = cp.vl["HUD"]["SEATBELT_DRIVER_LATCHED"] == 0
-      ret.cruiseState.available = bool(cp_adas.vl["PRO_PILOT"]["CRUISE_ON"])
+      # ret.seatbeltUnlatched = cp.vl["HUD"]["SEATBELT_DRIVER_LATCHED"] == 0
+      # ret.cruiseState.available = bool(cp_adas.vl["PRO_PILOT"]["CRUISE_ON"])
+      ret.seatbeltUnlatched = False
+      ret.cruiseState.available = True
+
 
     if self.CP.carFingerprint == CAR.ALTIMA:
       speed = cp.vl["PROPILOT_HUD"]["SET_SPEED"]

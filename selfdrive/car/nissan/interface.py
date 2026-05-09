@@ -4,11 +4,13 @@ from selfdrive.car import STD_CARGO_KG, get_safety_config
 from selfdrive.car.interfaces import CarInterfaceBase
 from selfdrive.car.nissan.values import CAR
 
+from system.swaglog import cloudlog
 
 class CarInterface(CarInterfaceBase):
 
   @staticmethod
   def _get_params(ret, candidate, fingerprint, car_fw, experimental_long, docs):
+    cloudlog.info("nissan interface.py _get_params")
     ret.carName = "nissan"
     ret.safetyConfigs = [get_safety_config(car.CarParams.SafetyModel.nissan)]
     ret.autoResumeSng = False
@@ -55,6 +57,7 @@ class CarInterface(CarInterfaceBase):
     ret.events = events.to_msg()
 
     return ret
-
-  def apply(self, c, now_nanos):
-    return self.CC.update(c, self.CS, now_nanos)
+  
+  def apply(self, c, sm, now_nanos):
+    cloudlog.info("nissan interface.py apply")
+    return self.CC.update(c, sm, self.CS, now_nanos)
