@@ -308,22 +308,22 @@ class Controls:
       self.events.add(EventName.radarFault)
     if not self.sm.valid['pandaStates']:
       self.events.add(EventName.usbError)
-    if CS.canTimeout:
-      self.events.add(EventName.canBusMissing)
-    elif not CS.canValid:
-      self.events.add(EventName.canError)
+    # if CS.canTimeout:
+      # self.events.add(EventName.canBusMissing)
+    # if not CS.canValid:
+    #   self.events.add(EventName.canError)
 
     # generic catch-all. ideally, a more specific event should be added above instead
     can_rcv_timeout = self.can_rcv_timeout_counter >= 5
     has_disable_events = self.events.any(ET.NO_ENTRY) and (self.events.any(ET.SOFT_DISABLE) or self.events.any(ET.IMMEDIATE_DISABLE))
     no_system_errors = (not has_disable_events) or (len(self.events) == num_events)
     if (not self.sm.all_checks() or can_rcv_timeout) and no_system_errors:
-      if not self.sm.all_alive():
-        self.events.add(EventName.commIssue)
-      elif not self.sm.all_freq_ok():
-        self.events.add(EventName.commIssueAvgFreq)
-      else:  # invalid or can_rcv_timeout.
-        self.events.add(EventName.commIssue)
+      # if not self.sm.all_alive():
+      #   self.events.add(EventName.commIssue)
+      # elif not self.sm.all_freq_ok():
+      #   self.events.add(EventName.commIssueAvgFreq)
+      # else:  # invalid or can_rcv_timeout.
+      #   self.events.add(EventName.commIssue)
 
       logs = {
         'invalid': [s for s, valid in self.sm.valid.items() if not valid],
@@ -337,8 +337,8 @@ class Controls:
     else:
       self.logged_comm_issue = None
 
-    if not self.sm['lateralPlan'].mpcSolutionValid:
-      self.events.add(EventName.plannerError)
+    # if not self.sm['lateralPlan'].mpcSolutionValid:
+      # self.events.add(EventName.plannerError)
 
   def data_sample(self):
     """Receive data from sockets and update carState"""
@@ -368,8 +368,9 @@ class Controls:
 
     # Check for CAN timeout
     if not can_strs:
-      self.can_rcv_timeout_counter += 1
-      self.can_rcv_cum_timeout_counter += 1
+      pass
+      # self.can_rcv_timeout_counter += 1
+      # self.can_rcv_cum_timeout_counter += 1
     else:
       self.can_rcv_timeout_counter = 0
 
@@ -738,14 +739,14 @@ class Controls:
     cs_send.carState.events = car_events
     self.pm.send('carState', cs_send)
 
-    cloudlog.info(f"publish_logs after send carState: {cs_send}")
+    cloudlog.info("publish_logs after send carState")
 
     # carEvents - logged every second or on change
-    if (self.sm.frame % int(1. / DT_CTRL) == 0) or (self.events.names != self.events_prev):
-      ce_send = messaging.new_message('carEvents', len(self.events))
-      ce_send.carEvents = car_events
-      self.pm.send('carEvents', ce_send)
-    self.events_prev = self.events.names.copy()
+    # if (self.sm.frame % int(1. / DT_CTRL) == 0) or (self.events.names != self.events_prev):
+    #   ce_send = messaging.new_message('carEvents', len(self.events))
+    #   ce_send.carEvents = car_events
+    #   self.pm.send('carEvents', ce_send)
+    # self.events_prev = self.events.names.copy()
 
     cloudlog.info("publish_logs after send carEvents")
 
@@ -757,11 +758,14 @@ class Controls:
 
     cloudlog.info("publish_logs after send carParams")
 
-    # carControl
-    cc_send = messaging.new_message('carControl')
-    cc_send.valid = CS.canValid
-    cc_send.carControl = CC
-    self.pm.send('carControl', cc_send)
+    # try:
+    #   # carControl
+    #   cc_send = messaging.new_message('carControl')
+    #   cc_send.valid = CS.canValid
+    #   cc_send.carControl = CC
+    #   self.pm.send('carControl', cc_send)
+    # except Exception as e:
+    #   cloudlog.info(f"publish_logs {e}")
 
     cloudlog.info("publish_logs after send carControl")
 

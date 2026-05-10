@@ -46,6 +46,8 @@ import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
 import messaging.ZMQPubHandler;
 
+import ai.flow.app.CloudLogConsole;
+
 public class ArduinoManager implements SensorInterface {
     private Context ctx;
     private Activity activity;
@@ -77,7 +79,7 @@ public class ArduinoManager implements SensorInterface {
         // Request permission for already plugged devices
         UsbManager manager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
         HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
-		Log.i(TAG, "Number of USB devices found: "+deviceList.size());
+		CloudLogConsole.println("Number of USB devices found: "+deviceList.size());
         final int deviceCount = deviceList.size();
 
         for (UsbDevice usbDevice : deviceList.values())
@@ -89,7 +91,7 @@ public class ArduinoManager implements SensorInterface {
     private BroadcastReceiver usbReceiver = new BroadcastReceiver() {
         public synchronized void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            System.out.println("RECEIVING INTENT: " + action);
+            CloudLogConsole.println("RECEIVING INTENT: " + action);
 
             // If newly connected USB device, request permission from android
             if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
@@ -103,7 +105,7 @@ public class ArduinoManager implements SensorInterface {
             // Permission denied return
             UsbDevice device = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
             if (!intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                Log.i(TAG, "Permission denied for device " + device);
+                CloudLogConsole.println("Permission denied for device " + device);
                 return;
             }
 
@@ -133,14 +135,14 @@ public class ArduinoManager implements SensorInterface {
 
 
             } catch (Exception e) {
-                Log.i(TAG, "Exception in onReceive usbReceiver: " + e);
+                CloudLogConsole.println("Exception in onReceive usbReceiver: " + e);
             }
         }
     };
 
     private void maybeRequestUSBPermission(UsbDevice device, Context context) {
         if (device == null) {
-            Log.w(TAG, "maybeRequestUSBPermission got a null device");
+            CloudLogConsole.println("maybeRequestUSBPermission got a null device");
             return;
         }
 
@@ -153,7 +155,7 @@ public class ArduinoManager implements SensorInterface {
             PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_MUTABLE);
             ((UsbManager) context.getSystemService(Context.USB_SERVICE)).requestPermission(device, pendingIntent);
         } else {
-            Log.w(TAG, "Found a USB device that's not a Arduino (VID: " + device.getVendorId() + ", PID: " + device.getProductId() + ")");
+            CloudLogConsole.println("Found a USB device that's not a Arduino (VID: " + device.getVendorId() + ", PID: " + device.getProductId() + ")");
         }
     }
 
@@ -192,16 +194,6 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         buffer = ByteBuffer.wrap(data, 8, dlc);
         buffer.get(canData);
 
-        // activity.runOnUiThread(new Runnable() {
-        //     public void run() {
-        //         new AlertDialog.Builder(activity)
-        //         .setTitle("Serial Message Received")
-        //         // .setMessage("canId: " + Integer.toString(canId) + "\n DLC: " + Integer.toString(dlc) + "\n Data: " + Integer.toString((int)canData[0]))
-        //         .setPositiveButton("OK", (dialog, which) -> { })
-        //         .show();
-        //     }
-        // });
-
         MsgCanData msgCanData = new MsgCanData(dlc);
 
         msgCanData.canData.get(0).setAddress(canId);
@@ -213,7 +205,7 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
 
     @Override
     public void onRunError(Exception e) {
-        Log.i(TAG, "onRunError exception in ArduinoInstance: " + e);
+        CloudLogConsole.println("onRunError exception in ArduinoInstance: " + e);
     }
 
     class DummyPandaInstance implements Runnable {
@@ -250,11 +242,11 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
                 dummyPandaState.start();
 
             } catch (Exception e) {
-                Log.i(TAG, "Exception in DummyPandaInstance start: " + e);
+                CloudLogConsole.println("Exception in DummyPandaInstance start: " + e);
             }
 
         }
-//ASdsdgysdaysgdyysagdygashduhaushd
+
         public void run() {
             try {
                 while (true) {
@@ -283,14 +275,14 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
                     }
                 }
             } catch (Exception e) {
-                Log.i(TAG, "Exception in DummyPandaInstance run: " + e);
+                CloudLogConsole.println("Exception in DummyPandaInstance run: " + e);
             }
         }
 
         public void initPandaState() {
             msgPandaState.pandaStates.get(0).setPandaType(Definitions.PandaState.PandaType.BLACK_PANDA);
             msgPandaState.pandaStates.get(0).setControlsAllowed(true);
-            msgPandaState.pandaStates.get(0).setSafetyModel(ai.flow.definitions.CarDefinitions.CarParams.SafetyModel.HONDA_NIDEC);
+            msgPandaState.pandaStates.get(0).setSafetyModel(ai.flow.definitions.CarDefinitions.CarParams.SafetyModel.NISSAN);
             msgPandaState.pandaStates.get(0).setIgnitionLine(true);
 
             // msgPandaState.pandaStates.get(0).setHeartbeatLost(false);
