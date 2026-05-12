@@ -189,16 +189,17 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         int dlc = data[4] & 0xFF;
         if (data.length < 8 + dlc) return;
         
-        // 2 padding bytes then rest is data
-        byte[] canData = new byte[dlc];
-        buffer = ByteBuffer.wrap(data, 8, dlc);
-        buffer.get(canData);
+        // Header is 8 bytes; copy only the CAN payload into the Cap'n Proto dat field.
+        byte[] canData = data.clone();
+        // byte[] canData = new byte[dlc];
+        // ByteBuffer.wrap(data, 8, dlc).get(canData);
 
-        MsgCanData msgCanData = new MsgCanData(dlc);
+        MsgCanData msgCanData = new MsgCanData(data.length);
 
         msgCanData.canData.get(0).setAddress(canId);
         msgCanData.canData.get(0).setSrc((byte)0);
         msgCanData.canData.get(0).setBusTime((short)0);
+        // msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
         // msgCanData.canData.get(0).setDat(canData);
         ph.publishBuffer("can", msgCanData.serialize(true));
     }
@@ -246,26 +247,27 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
             }
 
         }
-
+        
         public void run() {
             try {
                 while (true) {
                     //TODO: fix frequency issue - doesn't account for function runtime or modulus (could skip messages)
+                    long time = System.currentTimeMillis();
 
-                    if (System.currentTimeMillis() % 500L == 0) {
+                    if (time % 500L == 0) {
                         // Runs at 2hz which is 500ms
                         ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
                         // ph.publishBuffer("peripheralState", msgPeripheralState.serialize(true));
                     }
 
-                    if (System.currentTimeMillis() % 100L == 0) {
+                    if (time % 100L == 0) {
                         // Runs at 10hz which is 100ms
                         ph.publishBuffer("gpsLocationExternal", msgGpsLocationExternal.serialize(true));
                         ph.publishBuffer("driverState", msgDriverState.serialize(true));
                         ph.publishBuffer("driverMonitoringState", msgDriverMonitoringState.serialize(true));
                     }
 
-                    if (System.currentTimeMillis() % 10L == 0) {
+                    if (time % 10L == 0) {
                         // Runs at 100hz which is 10ms
                         msgAccelerometer.accelerometer.setTimestamp(System.currentTimeMillis());
                         msgGyroscope.gyroscope.setTimestamp(System.currentTimeMillis());

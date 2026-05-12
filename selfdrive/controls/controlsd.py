@@ -254,6 +254,8 @@ class Controls:
       else:
         self.events.add(EventName.calibrationInvalid)
 
+    cloudlog.info("update_events after calibrationIncomplete")
+
     # Handle lane change
     if self.sm['lateralPlan'].laneChangeState == LaneChangeState.preLaneChange:
       direction = self.sm['lateralPlan'].laneChangeDirection
@@ -280,13 +282,15 @@ class Controls:
       # if safety_mismatch or self.mismatch_counter >= 200:
         # self.events.add(EventName.controlsMismatch)
       if safety_mismatch:
-        cloudlog.info("safety_mismatch is true")
+        cloudlog.info(f"safety_mismatch is true: {pandaState.safetyModel}")
       if self.mismatch_counter >= 200:
         cloudlog.info(f"self.mismatch_counter >= 200 at: {self.mismatch_counter}")
 
 
       if log.PandaState.FaultType.relayMalfunction in pandaState.faults:
         self.events.add(EventName.relayMalfunction)
+      
+    cloudlog.info("update_events after safety_mismatch")
 
     # Handle HW and system malfunctions
     # Order is very intentional here. Be careful when modifying this.
@@ -317,6 +321,9 @@ class Controls:
     can_rcv_timeout = self.can_rcv_timeout_counter >= 5
     has_disable_events = self.events.any(ET.NO_ENTRY) and (self.events.any(ET.SOFT_DISABLE) or self.events.any(ET.IMMEDIATE_DISABLE))
     no_system_errors = (not has_disable_events) or (len(self.events) == num_events)
+
+    cloudlog.info("update_events after no_system_errors")
+  
     if (not self.sm.all_checks() or can_rcv_timeout) and no_system_errors:
       # if not self.sm.all_alive():
       #   self.events.add(EventName.commIssue)
@@ -405,6 +412,8 @@ class Controls:
 
     # ENABLED, SOFT DISABLING, PRE ENABLING, OVERRIDING
     if self.state != State.disabled:
+      cloudlog.info("state_transition state enabled")
+
       # user and immediate disable always have priority in a non-disabled state
       if self.events.any(ET.USER_DISABLE):
         self.state = State.disabled
@@ -415,6 +424,8 @@ class Controls:
         self.current_alert_types.append(ET.IMMEDIATE_DISABLE)
 
       else:
+        cloudlog.info("state_transition state enabled again")
+
         # ENABLED
         if self.state == State.enabled:
           if self.events.any(ET.SOFT_DISABLE):
@@ -428,6 +439,8 @@ class Controls:
 
         # SOFT DISABLING
         elif self.state == State.softDisabling:
+          cloudlog.info("state_transition state soft disabling")
+ 
           if not self.events.any(ET.SOFT_DISABLE):
             # no more soft disabling condition, so go back to ENABLED
             self.state = State.enabled
@@ -440,6 +453,8 @@ class Controls:
 
         # PRE ENABLING
         elif self.state == State.preEnabled:
+          cloudlog.info("state_transition state pre enabling")
+
           if not self.events.any(ET.PRE_ENABLE):
             self.state = State.enabled
           else:
@@ -447,6 +462,8 @@ class Controls:
 
         # OVERRIDING
         elif self.state == State.overriding:
+          cloudlog.info("state_transition state overriding")
+
           if self.events.any(ET.SOFT_DISABLE):
             self.state = State.softDisabling
             self.soft_disable_timer = int(SOFT_DISABLE_TIME / DT_CTRL)
@@ -458,6 +475,8 @@ class Controls:
 
     # DISABLED
     elif self.state == State.disabled:
+      cloudlog.info("state_transition state disabled")
+
       if self.events.any(ET.ENABLE):
         if self.events.any(ET.NO_ENTRY):
           self.current_alert_types.append(ET.NO_ENTRY)
@@ -475,6 +494,9 @@ class Controls:
     # Check if flowpilot is engaged and actuators are enabled
     self.enabled = self.state in ENABLED_STATES
     self.active = self.state in ACTIVE_STATES
+
+    cloudlog.info(f"state_transition enabled:{self.enabled} and self.active:{self.active}")
+
     if self.active:
       self.current_alert_types.append(ET.WARNING)
 
@@ -727,17 +749,17 @@ class Controls:
 
     cloudlog.info("publish_logs before send controlsState")
 
-    self.pm.send('controlsState', dat)
+    # self.pm.send('controlsState', dat)
 
     cloudlog.info("publish_logs after send controlsState")
 
     # carState
-    car_events = self.events.to_msg()
-    cs_send = messaging.new_message('carState')
-    cs_send.valid = CS.canValid
-    cs_send.carState = CS
-    cs_send.carState.events = car_events
-    self.pm.send('carState', cs_send)
+    # car_events = self.events.to_msg()
+    # cs_send = messaging.new_message('carState')
+    # cs_send.valid = CS.canValid
+    # cs_send.carState = CS
+    # cs_send.carState.events = car_events
+    # self.pm.send('carState', cs_send)
 
     cloudlog.info("publish_logs after send carState")
 
@@ -751,10 +773,10 @@ class Controls:
     cloudlog.info("publish_logs after send carEvents")
 
     # carParams - logged every 50 seconds (> 1 per segment)
-    if (self.sm.frame % int(50. / DT_CTRL) == 0):
-      cp_send = messaging.new_message('carParams')
-      cp_send.carParams = self.CP
-      self.pm.send('carParams', cp_send)
+    # if (self.sm.frame % int(50. / DT_CTRL) == 0):
+    #   cp_send = messaging.new_message('carParams')
+    #   cp_send.carParams = self.CP
+    #   self.pm.send('carParams', cp_send)
 
     cloudlog.info("publish_logs after send carParams")
 
@@ -784,10 +806,12 @@ class Controls:
     cloudlog.info("Controlsd step after sample")
 
     self.update_events(CS)
-    cloudlog.info("Controlsd step after update events")
+    # cloudlog.info("Controlsd step after update events")
 
     if not self.read_only and self.initialized:
       # Update control state
+      cloudlog.info("Controlsd step before state_transition & init & not readonly")
+
       self.state_transition(CS)
       cloudlog.info("Controlsd step after state_transition & init & not readonly")
 
@@ -807,11 +831,11 @@ class Controls:
     testingCounter = 0
     while True:
       self.step()
-      self.rk.monitor_time()
+      # self.rk.monitor_time()
 
       # TODO: remove this after testing
       # if self.i % 500 == 0:
-      if testingCounter % 500 == 0:
+      if testingCounter % 500 == 0 or testingCounter < 100:
         cloudlog.info("---------------")
         for event in self.events.events:
           cloudlog.info(EVENT_NAME[event])

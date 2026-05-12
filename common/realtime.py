@@ -93,7 +93,7 @@ class Ratekeeper:
     remaining = self._next_frame_time - sec_since_boot()
     self._next_frame_time += self._interval
     if self._print_delay_threshold is not None and remaining < -self._print_delay_threshold:
-      print(f"{self._process_name} lagging by {-remaining * 1000:.2f} ms")
+      cloudlog.info(f"{self._process_name} lagging by {-remaining * 1000:.2f} ms")
       lagged = True
     self._frame += 1
     self._remaining = remaining
