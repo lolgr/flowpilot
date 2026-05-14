@@ -187,27 +187,16 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         int dlc = data[4] & 0xFF;
         if (data.length < 8 + dlc) return;
         
-        // 2 padding bytes then rest is data
+        // 9th byte starts data
         byte[] canData = new byte[dlc];
-        buffer = ByteBuffer.wrap(data, 8, dlc);
-        buffer.get(canData);
-
-        // activity.runOnUiThread(new Runnable() {
-        //     public void run() {
-        //         new AlertDialog.Builder(activity)
-        //         .setTitle("Serial Message Received")
-        //         // .setMessage("canId: " + Integer.toString(canId) + "\n DLC: " + Integer.toString(dlc) + "\n Data: " + Integer.toString((int)canData[0]))
-        //         .setPositiveButton("OK", (dialog, which) -> { })
-        //         .show();
-        //     }
-        // });
+        System.arraycopy(data, 8, canData, 0, dlc);
 
         MsgCanData msgCanData = new MsgCanData(dlc);
 
         msgCanData.canData.get(0).setAddress(canId);
         msgCanData.canData.get(0).setSrc((byte)0);
         msgCanData.canData.get(0).setBusTime((short)0);
-        // msgCanData.canData.get(0).setDat(canData);
+        msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
         ph.publishBuffer("can", msgCanData.serialize(true));
     }
 
