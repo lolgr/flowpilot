@@ -201,8 +201,8 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         if (data.length < 8 + dlc) return;
         
         // Header is 8 bytes; copy only the CAN payload into the Cap'n Proto dat field.
-        // byte[] canData = new byte[dlc];
-        // System.arraycopy(data, 8, canData, 0, dlc);
+        byte[] canData = new byte[dlc];
+        System.arraycopy(data, 8, canData, 0, dlc);
 
         // byte[] canData = new byte[dlc];
         // ByteBuffer.wrap(data, 8, dlc).get(canData);

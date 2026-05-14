@@ -632,7 +632,7 @@ class Controls:
     curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, 0.0)
 
     cloudlog.info(
-      # f"CS_angle={CS.steeringAngleDeg:.1f} "
+      f"CS_angle={CS.steeringAngleDeg:.1f} "
 
       # f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
       # f"target={CC.actuators.steeringAngleDeg:.1f} "
