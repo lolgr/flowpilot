@@ -52,6 +52,8 @@ public class CloudLogConsole implements Runnable {
 
     // Adds a log message to the logs StringBuilder
     public static synchronized void println(String newLog) {
+        if (logs.length() > 2000) logs.delete(0, 500);
+
         logs.append(newLog);
         logs.append("\n");
 
@@ -156,7 +158,6 @@ public class CloudLogConsole implements Runnable {
                     JsonValue jsonValue = new JsonReader().parse(msg);
                     println(jsonValue.get("filename").asString() + " " + jsonValue.get("msg").toString());
                 }
-                // Thread.sleep(10);
             }
         } catch (Exception e) { 
             println("Exception in CloudLogConsole run: " + e);

@@ -254,8 +254,6 @@ class Controls:
       else:
         self.events.add(EventName.calibrationInvalid)
 
-    cloudlog.info("update_events after calibrationIncomplete")
-
     # Handle lane change
     if self.sm['lateralPlan'].laneChangeState == LaneChangeState.preLaneChange:
       direction = self.sm['lateralPlan'].laneChangeDirection
@@ -281,17 +279,15 @@ class Controls:
 
       # if safety_mismatch or self.mismatch_counter >= 200:
         # self.events.add(EventName.controlsMismatch)
-      if safety_mismatch:
-        cloudlog.info(f"safety_mismatch is true: {pandaState.safetyModel}")
-      if self.mismatch_counter >= 200:
-        cloudlog.info(f"self.mismatch_counter >= 200 at: {self.mismatch_counter}")
+      # if safety_mismatch:
+        # cloudlog.info(f"safety_mismatch is true: {pandaState.safetyModel}")
+      # if self.mismatch_counter >= 200:
+        # cloudlog.info(f"self.mismatch_counter >= 200 at: {self.mismatch_counter}")
 
 
       if log.PandaState.FaultType.relayMalfunction in pandaState.faults:
         self.events.add(EventName.relayMalfunction)
       
-    cloudlog.info("update_events after safety_mismatch")
-
     # Handle HW and system malfunctions
     # Order is very intentional here. Be careful when modifying this.
     # All events here should at least have NO_ENTRY and SOFT_DISABLE.
@@ -322,8 +318,6 @@ class Controls:
     has_disable_events = self.events.any(ET.NO_ENTRY) and (self.events.any(ET.SOFT_DISABLE) or self.events.any(ET.IMMEDIATE_DISABLE))
     no_system_errors = (not has_disable_events) or (len(self.events) == num_events)
 
-    cloudlog.info("update_events after no_system_errors")
-  
     if (not self.sm.all_checks() or can_rcv_timeout) and no_system_errors:
       # if not self.sm.all_alive():
       #   self.events.add(EventName.commIssue)
@@ -339,7 +333,7 @@ class Controls:
         'can_rcv_timeout': can_rcv_timeout,
       }
       if logs != self.logged_comm_issue:
-        cloudlog.event("commIssue", error=True, **logs)
+        # cloudlog.event("commIssue", error=True, **logs)
         self.logged_comm_issue = logs
     else:
       self.logged_comm_issue = None
@@ -356,8 +350,6 @@ class Controls:
     if len(can_strs) and REPLAY:
       self.can_log_mono_time = messaging.log_from_bytes(can_strs[0]).logMonoTime
     
-    cloudlog.info("Controlsd data_sample after CarInterface.update")
-
     self.sm.update(0)
 
     if not self.initialized:
@@ -370,8 +362,6 @@ class Controls:
         self.initialized = True
         self.set_initial_state()
         Params().put_bool("ControlsReady", True)
-
-    cloudlog.info("Controlsd data_sample after if not self.init")
 
     # Check for CAN timeout
     if not can_strs:
@@ -394,8 +384,6 @@ class Controls:
       self.mismatch_counter += 1
 
     self.distance_traveled += CS.vEgo * DT_CTRL
-
-    cloudlog.info("Controlsd data_sample end after mismatch")
 
     return CS
 
@@ -512,20 +500,14 @@ class Controls:
 
     # Check which actuators can be enabled
     standstill = CS.vEgo <= max(self.CP.minSteerSpeed, MIN_LATERAL_CONTROL_SPEED) or CS.standstill
-    CC.latActive = self.active and not CS.steerFaultTemporary and not CS.steerFaultPermanent and \
-                   (not standstill or self.joystick_mode)
-    CC.longActive = self.enabled and not self.events.any(ET.OVERRIDE_LONGITUDINAL) and self.CP.openpilotLongitudinalControl
+    # CC.latActive = self.active and not CS.steerFaultTemporary and not CS.steerFaultPermanent and \
+    #                (not standstill or self.joystick_mode)
+    # CC.longActive = self.enabled and not self.events.any(ET.OVERRIDE_LONGITUDINAL) and self.CP.openpilotLongitudinalControl
+    CC.latActive = True
+    CC.longActive = True
 
     actuators = CC.actuators
     actuators.longControlState = self.LoC.long_control_state
-
-    # Enable blinkers while lane changing
-    if self.sm['lateralPlan'].laneChangeState != LaneChangeState.off:
-      CC.leftBlinker = self.sm['lateralPlan'].laneChangeDirection == LaneChangeDirection.left
-      CC.rightBlinker = self.sm['lateralPlan'].laneChangeDirection == LaneChangeDirection.right
-
-    if CS.leftBlinker or CS.rightBlinker:
-      self.last_blinker_frame = self.sm.frame
 
     # State specific actions
 
@@ -549,35 +531,6 @@ class Controls:
                                                                              self.last_actuators, self.steer_limited, self.desired_curvature,
                                                                              self.desired_curvature_rate, self.sm['liveLocationKalman'])
       actuators.curvature = self.desired_curvature
-    else:
-      lac_log = log.ControlsState.LateralDebugState.new_message()
-      if self.sm.rcv_frame['testJoystick'] > 0:
-        if CC.longActive:
-          actuators.accel = 4.0*clip(self.sm['testJoystick'].axes[0], -1, 1)
-
-        if CC.latActive:
-          steer = clip(self.sm['testJoystick'].axes[1], -1, 1)
-          # max angle is 45 for angle-based cars
-          actuators.steer, actuators.steeringAngleDeg = steer, steer * 45.
-
-        lac_log.active = self.active
-        lac_log.steeringAngleDeg = CS.steeringAngleDeg
-        lac_log.output = actuators.steer
-        lac_log.saturated = abs(actuators.steer) >= 0.9
-
-    if CS.steeringPressed:
-      self.last_steering_pressed_frame = self.sm.frame
-    recent_steer_pressed = (self.sm.frame - self.last_steering_pressed_frame)*DT_CTRL < 2.0
-
-    # Send a "steering required alert" if saturation count has reached the limit
-    if lac_log.active and not recent_steer_pressed:
-      if self.CP.lateralTuning.which() == 'torque' and not self.joystick_mode:
-        undershooting = abs(lac_log.desiredLateralAccel) / abs(1e-3 + lac_log.actualLateralAccel) > 1.2
-        turning = abs(lac_log.desiredLateralAccel) > 1.0
-        good_speed = CS.vEgo > 5
-        max_torque = abs(self.last_actuators.steer) > 0.99
-        if undershooting and turning and good_speed and max_torque:
-          lac_log.active and self.events.add(EventName.steerSaturated)
 
     # Ensure no NaNs/Infs
     for p in ACTUATOR_FIELDS:
@@ -606,8 +559,6 @@ class Controls:
     CC.cruiseControl.override = self.enabled and not CC.longActive and self.CP.openpilotLongitudinalControl
     CC.cruiseControl.cancel = CS.cruiseState.enabled and (not self.enabled or not self.CP.pcmCruise)
 
-    cloudlog.info(f"Controlsd publish_logs after cruise longActive: {CC.longActive} and enabled: {self.enabled}")
-
     speeds = self.sm['longitudinalPlan'].speeds
     if len(speeds):
       CC.cruiseControl.resume = self.enabled and CS.cruiseState.standstill and speeds[-1] > 0.1
@@ -625,8 +576,6 @@ class Controls:
     ldw_allowed = self.is_ldw_enabled and CS.vEgo > LDW_MIN_SPEED and not recent_blinker \
                   and not CC.latActive and self.sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.calibrated
     
-    cloudlog.info("Controlsd publish_logs before desire")
-
     model_v2 = self.sm['modelV2']
     desire_prediction = model_v2.meta.desirePrediction
     if len(desire_prediction) and ldw_allowed:
@@ -651,8 +600,6 @@ class Controls:
     if self.enabled:
       clear_event_types.add(ET.NO_ENTRY)
 
-    cloudlog.info("Controlsd publish_logs after clear_event_types")
-
     alerts = self.events.create_alerts(self.current_alert_types, [self.CP, CS, self.sm, self.is_metric, self.soft_disable_timer])
     self.AM.add_many(self.sm.frame, alerts)
     current_alert = self.AM.process_alerts(self.sm.frame, clear_event_types)
@@ -660,21 +607,14 @@ class Controls:
     if current_alert:
       hudControl.visualAlert = current_alert.visual_alert
 
-    cloudlog.info("Controlsd publish_logs after alerts created")
 
     if not self.read_only and self.initialized:
       # send car controls over can
       now_nanos = self.can_log_mono_time if REPLAY else int(sec_since_boot() * 1e9)
 
-      cloudlog.info(f"Controlsd publish_logs before CI.apply: {self.CI}")
-
       self.last_actuators, can_sends = self.CI.apply(CC, self.sm, now_nanos)
 
-      cloudlog.info("Controlsd publish_logs after CI.apply")
-
       self.pm.send('sendcan', can_list_to_can_capnp(can_sends, msgtype='sendcan', valid=CS.canValid))
-
-      cloudlog.info("Controlsd publish_logs after sendcan")
 
       CC.actuatorsOutput = self.last_actuators
       if self.CP.steerControlType == car.CarParams.SteerControlType.angle:
@@ -685,20 +625,21 @@ class Controls:
 
     force_decel = self.state == State.softDisabling
 
-    cloudlog.event(
-      f"read_only={self.read_only} initialized={self.initialized} "
-      f"self.active={self.active} self.enabled:{self.enabled} "
-      f"latActive={CC.latActive} "
-      f"requested={CC.actuators.steeringAngleDeg} "
-      f"applied={CC.actuatorsOutput.steeringAngleDeg} "
-      f"actual={CS.steeringAngleDeg}",
-      error=True,
-    )
     # Curvature & Steering angle
     #lp = self.sm['liveParameters']
 
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg)
     curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, 0.0)
+
+    cloudlog.info(
+      # f"CS_angle={CS.steeringAngleDeg:.1f} "
+
+      # f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
+      # f"target={CC.actuators.steeringAngleDeg:.1f} "
+      # f"output={CC.actuatorsOutput.steeringAngleDeg:.1f} "
+      # f"limited={self.steer_limited}"
+      # f"steer_angle_without_offset={steer_angle_without_offset}"
+    )
 
     # controlsState
     dat = messaging.new_message('controlsState')
@@ -747,11 +688,7 @@ class Controls:
     elif lat_tuning == 'indi':
       controlsState.lateralControlState.indiState = lac_log
 
-    cloudlog.info("publish_logs before send controlsState")
-
-    # self.pm.send('controlsState', dat)
-
-    cloudlog.info("publish_logs after send controlsState")
+    self.pm.send('controlsState', dat)
 
     # carState
     # car_events = self.events.to_msg()
@@ -761,8 +698,6 @@ class Controls:
     # cs_send.carState.events = car_events
     # self.pm.send('carState', cs_send)
 
-    cloudlog.info("publish_logs after send carState")
-
     # carEvents - logged every second or on change
     # if (self.sm.frame % int(1. / DT_CTRL) == 0) or (self.events.names != self.events_prev):
     #   ce_send = messaging.new_message('carEvents', len(self.events))
@@ -770,81 +705,62 @@ class Controls:
     #   self.pm.send('carEvents', ce_send)
     # self.events_prev = self.events.names.copy()
 
-    cloudlog.info("publish_logs after send carEvents")
-
     # carParams - logged every 50 seconds (> 1 per segment)
     # if (self.sm.frame % int(50. / DT_CTRL) == 0):
     #   cp_send = messaging.new_message('carParams')
     #   cp_send.carParams = self.CP
     #   self.pm.send('carParams', cp_send)
 
-    cloudlog.info("publish_logs after send carParams")
-
-    # try:
-    #   # carControl
-    #   cc_send = messaging.new_message('carControl')
-    #   cc_send.valid = CS.canValid
-    #   cc_send.carControl = CC
-    #   self.pm.send('carControl', cc_send)
-    # except Exception as e:
-    #   cloudlog.info(f"publish_logs {e}")
-
-    cloudlog.info("publish_logs after send carControl")
+    # carControl
+    cc_send = messaging.new_message('carControl')
+    cc_send.valid = CS.canValid
+    cc_send.carControl = CC
+    self.pm.send('carControl', cc_send)
 
     # copy CarControl to pass to CarInterface on the next iteration
-
-    cloudlog.info("publish_logs end")
 
     self.CC = CC
 
   def step(self):
-    cloudlog.info("Controlsd step start")
     start_time = sec_since_boot()
 
     # Sample data from sockets and get a carState
     CS = self.data_sample()
-    cloudlog.info("Controlsd step after sample")
 
-    self.update_events(CS)
-    # cloudlog.info("Controlsd step after update events")
+    # self.update_events(CS)
 
     if not self.read_only and self.initialized:
       # Update control state
-      cloudlog.info("Controlsd step before state_transition & init & not readonly")
 
-      self.state_transition(CS)
-      cloudlog.info("Controlsd step after state_transition & init & not readonly")
+      # self.state_transition(CS)
+      self.enabled = True
+      self.active = True
 
     # Compute actuators (runs PID loops and lateral MPC)
     CC, lac_log = self.state_control(CS)
-    cloudlog.info("Controlsd step after state control")
+    # cloudlog.info("Controlsd step after state control")
 
     # Publish data
     self.publish_logs(CS, start_time, CC, lac_log)
 
     self.CS_prev = CS
-    cloudlog.info("Controlsd step end")
 
   def controlsd_thread(self):
     cloudlog.info("Controlsd thread")
     self.i = 0
-    testingCounter = 0
     while True:
       self.step()
       # self.rk.monitor_time()
 
       # TODO: remove this after testing
-      # if self.i % 500 == 0:
-      if testingCounter % 500 == 0 or testingCounter < 100:
-        cloudlog.info("---------------")
-        for event in self.events.events:
-          cloudlog.info(EVENT_NAME[event])
-        cloudlog.info('enabled:', self.enabled)
-        cloudlog.info('current alerts:', self.current_alert)
-        cloudlog.info('timer_now:', sec_since_boot())
-        cloudlog.info("---------------")
+      if self.i % 500 == 0:
+        cloudlog.info("---------------"
+                      f"{self.events.events}"
+                      f"enabled: {self.enabled}"
+                      f"current alerts: {self.current_alert}"
+                      f"timer_now: {sec_since_boot()}"
+                      "---------------")
       self.i += 1
-      testingCounter += 1
 
 try:
   def main(sm=None, pm=None, logcan=None):

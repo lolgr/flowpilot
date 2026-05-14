@@ -51,6 +51,12 @@ build_clean() {
   build_full
 }
 
+# Function to build flowy and app
+build_flowyapp() {
+  build_flowy
+  build_app
+}
+
 # Function to build everything
 build_full() {
   echo "Building everything..."
@@ -95,12 +101,15 @@ case "$build_target" in
   clean)
     build_clean
     ;;
+  flowyapp)
+    build_flowyapp
+    ;;
   run)
     run "$@"
     ;;
   *)
     echo "Invalid argument: $1"
-    echo "Usage: $0 {full|scons|flowy|app|clean}"
+    echo "Usage: $0 {full|scons|flowy|app|flowyapp|clean}"
     exit 1
     ;;
 esac

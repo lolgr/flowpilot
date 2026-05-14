@@ -176,6 +176,17 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         dummyPanda.start();
     }
 
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
     @Override
     public void onNewData(byte[] data) {
 
@@ -183,24 +194,34 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
 
         // First 4 bytes represent canid
         ByteBuffer buffer = ByteBuffer.wrap(data, 0, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
-        int canId = buffer.getInt();
+        Integer canId = buffer.getInt();
 
         // DLC is 5th byte
         int dlc = data[4] & 0xFF;
         if (data.length < 8 + dlc) return;
         
         // Header is 8 bytes; copy only the CAN payload into the Cap'n Proto dat field.
-        byte[] canData = data.clone();
+        // byte[] canData = new byte[dlc];
+        // System.arraycopy(data, 8, canData, 0, dlc);
+
         // byte[] canData = new byte[dlc];
         // ByteBuffer.wrap(data, 8, dlc).get(canData);
 
-        MsgCanData msgCanData = new MsgCanData(data.length);
+        // byte[] canData = new byte[] { (byte)0x0F, (byte)0xF1, (byte)0x0B, (byte)0x07, (byte)0xF2, (byte)0xBE, (byte)0x5D, (byte)0x0D };
+        // MsgCanData msgCanData = new MsgCanData(8);
+
+        // if (canId == 0x02) {
+        //     // double raw = ((short)((data[8] & 0xFF) | ((data[9] & 0xFF) << 8))) * 0.1;
+        //     double raw = ((short)((canData[0] & 0xFF) | ((canData[1] & 0xFF) << 8))) * 0.1;
+        //     CloudLogConsole.println("Found Steering: " + raw);
+        // }
+
+        MsgCanData msgCanData = new MsgCanData(dlc);
 
         msgCanData.canData.get(0).setAddress(canId);
         msgCanData.canData.get(0).setSrc((byte)0);
         msgCanData.canData.get(0).setBusTime((short)0);
-        // msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
-        // msgCanData.canData.get(0).setDat(canData);
+        msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
         ph.publishBuffer("can", msgCanData.serialize(true));
     }
 

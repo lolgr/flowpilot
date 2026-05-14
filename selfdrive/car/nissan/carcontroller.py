@@ -20,7 +20,6 @@ class CarController:
     self.packer = CANPacker(dbc_name)
 
   def update(self, CC, sm, CS, now_nanos):
-    cloudlog.info("nissan carcontroller.py update start")
     actuators = CC.actuators
     hud_control = CC.hudControl
     pcm_cancel_cmd = CC.cruiseControl.cancel
@@ -50,15 +49,11 @@ class CarController:
       apply_angle = CS.out.steeringAngleDeg
       self.lkas_max_torque = 0
 
-    cloudlog.info(f"nissan carcontroller.py update after latActive: {CC.latActive}")
-
     self.apply_angle_last = apply_angle
 
     if self.CP.carFingerprint in (CAR.ROGUE, CAR.XTRAIL, CAR.ALTIMA) and pcm_cancel_cmd:
       can_sends.append(nissancan.create_acc_cancel_cmd(self.packer, self.car_fingerprint, CS.cruise_throttle_msg))
       
-    cloudlog.info("nissan carcontroller.py after create_acc_cancel_cmd")
-    
     # TODO: Find better way to cancel!
     # For some reason spamming the cancel button is unreliable on the Leaf
     # We now cancel by making propilot think the seatbelt is unlatched,
@@ -66,12 +61,8 @@ class CarController:
     if self.CP.carFingerprint in (CAR.LEAF, CAR.LEAF_IC) and self.frame % 2 == 0:
       can_sends.append(nissancan.create_cancel_msg(self.packer, CS.cancel_msg, pcm_cancel_cmd))
 
-    cloudlog.info("nissan carcontroller.py after create_cancel_msg")
-    
     can_sends.append(nissancan.create_steering_control(
       self.packer, apply_angle, self.frame, CC.latActive, self.lkas_max_torque))
-
-    cloudlog.info("nissan carcontroller.py after create_steering_control")
 
     if self.CP.carFingerprint != CAR.ALTIMA:
       if self.frame % 2 == 0:
@@ -82,12 +73,8 @@ class CarController:
         can_sends.append(nissancan.create_lkas_hud_info_msg(
           self.packer, CS.lkas_hud_info_msg, steer_hud_alert
         ))
-    cloudlog.info("nissan carcontroller.py after != CAR.ALTIMA")
-
     new_actuators = actuators.copy()
     new_actuators.steeringAngleDeg = apply_angle
-
-    cloudlog.info("nissan carcontroller.py END after copy")
 
     self.frame += 1
     return new_actuators, can_sends
