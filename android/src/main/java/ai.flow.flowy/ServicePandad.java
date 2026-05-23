@@ -61,7 +61,7 @@ public class ServicePandad extends Service {
         }
     };
 
-    public startPandaInstance(int fd) {
+    public void startPandaInstance(int fd) {
         PandaInstance pandaInstance = new PandaInstance(fd);
         new Thread(pandaInstance).start();
     }
@@ -109,7 +109,7 @@ public class ServicePandad extends Service {
         System.out.println("Flashing Panda");
         PythonRunner.run(0, app_root + "/panda/board/obj/");
 
-        startPandaInstance(intent.getIntExtra("fd"));
+        startPandaInstance(intent.getIntExtra("fd", -1));
 
         return startType();
 

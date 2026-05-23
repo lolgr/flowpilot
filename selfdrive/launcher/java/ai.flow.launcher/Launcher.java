@@ -51,7 +51,7 @@ public class Launcher {
         startSensorD();
         initModelD();
         // this.managers.get("panda").start();
-        this.managers.get("arduino").start();
+        this.managers.get("usb").start();
     }
 
     public void main(String[] args) {
