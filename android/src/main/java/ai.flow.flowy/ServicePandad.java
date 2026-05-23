@@ -50,8 +50,7 @@ public class ServicePandad extends Service {
                         UsbManager usbManager = (UsbManager) getSystemService(Context.USB_SERVICE);
                         UsbDeviceConnection usbDeviceConnection = usbManager.openDevice(device);
                         Log.i(TAG, "Permission granted for serial "+usbDeviceConnection.getSerial());
-                        PandaInstance pandaInstance = new PandaInstance(usbDeviceConnection.getFileDescriptor());
-                        new Thread(pandaInstance).start();
+                        startPandaInstance(usbDeviceConnection.getFileDescriptor());
                     }
                 }
                 else {
@@ -61,6 +60,11 @@ public class ServicePandad extends Service {
         }
         }
     };
+
+    public startPandaInstance(int fd) {
+        PandaInstance pandaInstance = new PandaInstance(fd);
+        new Thread(pandaInstance).start();
+    }
 
     private void maybeRequestUSBPermission(UsbDevice device, Context context) {
         if (device == null) {
@@ -105,27 +109,39 @@ public class ServicePandad extends Service {
         System.out.println("Flashing Panda");
         PythonRunner.run(0, app_root + "/panda/board/obj/");
 
-        IntentFilter attachFilter = new IntentFilter();
-        // Receiver for attached devices, used to request permission when plugging in a device
-        attachFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
-        // Receiver for extended permissions, called when the user accepts USB permissions
-        attachFilter.addAction(ACTION_USB_PERMISSION);
-        registerReceiver(usbReceiver, attachFilter, Context.RECEIVER_EXPORTED);
-
-        // Request permission for already plugged devices
-        UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
-        HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
-		Log.i(TAG, "Number of USB devices found: "+deviceList.size());
-        for (UsbDevice usbDevice : deviceList.values())
-        {
-            maybeRequestUSBPermission(usbDevice, this);
-        }
+        startPandaInstance(intent.getIntExtra("fd"));
 
         return startType();
+
+        // Should already have permissions; defined in USBManager
+
+        // IntentFilter attachFilter = new IntentFilter();
+        // // Receiver for attached devices, used to request permission when plugging in a device
+        // attachFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        // // Receiver for extended permissions, called when the user accepts USB permissions
+        // attachFilter.addAction(ACTION_USB_PERMISSION);
+        // registerReceiver(usbReceiver, attachFilter, Context.RECEIVER_EXPORTED);
+
+        // // Request permission for already plugged devices
+        // UsbManager manager = (UsbManager) getSystemService(Context.USB_SERVICE);
+        // HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
+		// Log.i(TAG, "Number of USB devices found: "+deviceList.size());
+        // for (UsbDevice usbDevice : deviceList.values())
+        // {
+        //     maybeRequestUSBPermission(usbDevice, this);
+        // }
+
+        // return startType();
     }
 
     public static void start(Context ctx) {
         Intent serviceIntent = new Intent(ctx, ServicePandad.class);
+        ctx.startService(serviceIntent);
+    }
+
+    public static void start(Context ctx, int fd) {
+        Intent serviceIntent = new Intent(ctx, ServicePandad.class);
+        serviceIntent.putExtra("fd", fd);
         ctx.startService(serviceIntent);
     }
 
