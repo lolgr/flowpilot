@@ -16,12 +16,17 @@ public class CloudLogConsole implements Runnable {
     private static StringBuilder logs = new StringBuilder();
     private static CloudLogConsole instance = new CloudLogConsole();
 
+    private static boolean updateOnRecv = true;
+    private static Label messagesLabel;
+    private static ScrollPane messagesScrollPane;
+
+    // Max num of chars in logs before first <deleteLength> chars are deleted.
+    private static final int maxCharLength = 2000;
+    private static final int deleteLength = 500;
+
     private ZMQSubHandler sh;
     private Thread consoleThead;
     private Thread gdxUiThread;
-
-    private static Label messagesLabel;
-    private static ScrollPane messagesScrollPane;
 
     public CloudLogConsole() { }
 
@@ -32,6 +37,11 @@ public class CloudLogConsole implements Runnable {
 
     public static CloudLogConsole getInstance() {
         return instance;
+    }
+
+    // If true, update the label every time a new message is printed; Used to disable updating the label if it's not visible (should be called from SettingsScreen)
+    public static void setUpdateOnRecv(boolean val) {
+        updateOnRecv = val;
     }
 
     public static boolean isConsoleStarted() {
@@ -52,14 +62,17 @@ public class CloudLogConsole implements Runnable {
 
     // Adds a log message to the logs StringBuilder
     public static synchronized void println(String newLog) {
+        if (logs.length() > maxCharLength) logs.delete(0, deleteLength);
+
         logs.append(newLog);
         logs.append("\n");
 
-        if (instance.gdxUiThread != null)
+        if (updateOnRecv && instance.gdxUiThread != null)
             updateLabel();
     }
 
-    private static synchronized void updateLabel() {
+    // Updates the label containing the log messages (should be called from SettingsScreen)
+    public static synchronized void updateLabel() {
         // Early return if console is not started
         if (!isConsoleStarted()) return;
 
@@ -83,6 +96,8 @@ public class CloudLogConsole implements Runnable {
     public static void fillConsoleSettings(FlowUI appContext, Table cloudlogTable) {
         // Early return if console is not started
         if (!isConsoleStarted()) return;
+
+        setUpdateOnRecv(true);
 
         if (instance.gdxUiThread == null)
             Gdx.app.postRunnable(() -> setGdxUiThread());
@@ -156,7 +171,6 @@ public class CloudLogConsole implements Runnable {
                     JsonValue jsonValue = new JsonReader().parse(msg);
                     println(jsonValue.get("filename").asString() + " " + jsonValue.get("msg").toString());
                 }
-                // Thread.sleep(10);
             }
         } catch (Exception e) { 
             println("Exception in CloudLogConsole run: " + e);

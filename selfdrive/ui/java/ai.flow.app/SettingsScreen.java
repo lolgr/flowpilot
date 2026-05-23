@@ -180,6 +180,7 @@ public class SettingsScreen extends ScreenAdapter {
             @Override
             public void clicked(InputEvent event, float x, float y) {
                 appContext.setScreen(appContext.onRoadScreen);
+                CloudLogConsole.setUpdateOnRecv(false);
             }
         });
         closeButton.setColor(1, 1, 1, 0.7f);
