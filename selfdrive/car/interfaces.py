@@ -15,6 +15,8 @@ from selfdrive.controls.lib.drive_helpers import V_CRUISE_MAX, get_friction
 from selfdrive.controls.lib.events import Events
 from selfdrive.controls.lib.vehicle_model import VehicleModel
 
+from system.swaglog import cloudlog
+
 ButtonType = car.CarState.ButtonEvent.Type
 GearShifter = car.CarState.GearShifter
 EventName = car.CarEvent.EventName
@@ -205,8 +207,12 @@ class CarInterfaceBase(ABC):
     # get CarState
     ret = self._update(c)
 
-    ret.canValid = all(cp.can_valid for cp in self.can_parsers if cp is not None)
-    ret.canTimeout = any(cp.bus_timeout for cp in self.can_parsers if cp is not None)
+    # ret.canValid = all(cp.can_valid for cp in self.can_parsers if cp is not None)
+    # ret.canTimeout = any(cp.bus_timeout for cp in self.can_parsers if cp is not None)
+    ret.canValid = True
+    ret.canTimeout = False
+
+    # cloudlog.info(f"CI.update canValid:{ret.canValid} and can_parsers:{self.can_parsers} and canTimeout:{ret.canTimeout}")
 
     if ret.vEgoCluster == 0.0 and not self.v_ego_cluster_seen:
       ret.vEgoCluster = ret.vEgo

@@ -23,11 +23,14 @@ import android.util.Log;
 
 import android.widget.Toast;
 import android.app.AlertDialog;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Arrays;
 import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import ai.flow.sensor.messages.MsgCanData;
 import ai.flow.sensor.messages.MsgPandaState;
 import ai.flow.sensor.messages.MsgPeripheralState;
@@ -45,135 +48,37 @@ import com.hoho.android.usbserial.driver.UsbSerialProber;
 import com.hoho.android.usbserial.util.SerialInputOutputManager;
 
 import messaging.ZMQPubHandler;
+import messaging.ZMQSubHandler;
 
 import ai.flow.app.CloudLogConsole;
 
-public class ArduinoManager implements SensorInterface {
+public class ArduinoInstance implements SerialInputOutputManager.Listener {
+    private static final String TAG = "FlowPilot";
+    private static final String CAN_REPLAY_ASSET = "can_replay.bin";
+    private static final int CAN_REPLAY_RECORD_SIZE = 16;
     private Context ctx;
     private Activity activity;
+    private volatile boolean replayRunning = false;
+    private UsbSerialPort port = null;
+    private static ZMQPubHandler ph = new ZMQPubHandler();
+    private static ZMQSubHandler sh = new ZMQSubHandler(true);
 
-    private static final String TAG = "FlowPilot";
-    private Thread applicationThread = null;
-
-	private static final String ACTION_USB_PERMISSION = "ai.flow.flowy.USB_PERMISSION";
-
-    public ArduinoManager(Context ctx, Activity activity) {
+    public ArduinoInstance(Context ctx, Activity activity) {
         this.ctx = ctx;
         this.activity = activity;
-    }
-
-    @Override
-    public void dispose() {}
-
-    @Override
-    public void stop() {}
-
-    public void start() {
-        IntentFilter attachFilter = new IntentFilter();
-        // Receiver for attached devices, used to request permission when plugging in a device
-        attachFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
-        // Receiver for extended permissions, called when the user accepts USB permissions
-        attachFilter.addAction(ACTION_USB_PERMISSION);
-        ctx.registerReceiver(usbReceiver, attachFilter, Context.RECEIVER_EXPORTED);
-
-        // Request permission for already plugged devices
-        UsbManager manager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
-        HashMap<String, UsbDevice> deviceList = manager.getDeviceList();
-		CloudLogConsole.println("Number of USB devices found: "+deviceList.size());
-        final int deviceCount = deviceList.size();
-
-        for (UsbDevice usbDevice : deviceList.values())
-        {
-            maybeRequestUSBPermission(usbDevice, ctx);
-        }
-    }
-
-    private BroadcastReceiver usbReceiver = new BroadcastReceiver() {
-        public synchronized void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            CloudLogConsole.println("RECEIVING INTENT: " + action);
-
-            // If newly connected USB device, request permission from android
-            if (UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action)) {
-                UsbDevice usbDevice = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-                maybeRequestUSBPermission(usbDevice, context);
-                return;
-            } else if (!ACTION_USB_PERMISSION.equals(action))
-                // Some other usb message return
-                return;
-
-            // Permission denied return
-            UsbDevice device = (UsbDevice)intent.getParcelableExtra(UsbManager.EXTRA_DEVICE);
-            if (!intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)) {
-                CloudLogConsole.println("Permission denied for device " + device);
-                return;
-            }
-
-            if(device == null)
-                return;
-            
-            UsbManager usbManager = (UsbManager) ctx.getSystemService(Context.USB_SERVICE);
-            UsbDeviceConnection usbDeviceConnection = usbManager.openDevice(device);
-
-            if (usbDeviceConnection == null) {
-                Log.i(TAG, "Failed to open device");
-                return;
-            }
-
-            try {
-                List<UsbSerialDriver> availableDrivers = UsbSerialProber.getDefaultProber().findAllDrivers(usbManager);
-                UsbSerialDriver driver = availableDrivers.get(0);
-
-                UsbSerialPort port = driver.getPorts().get(0);
-                port.open(usbDeviceConnection);
-                port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
-
-                ArduinoInstance arduinoinstance = new ArduinoInstance(activity);
-                
-                SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, arduinoinstance);
-                usbIoManager.start();
-
-
-            } catch (Exception e) {
-                CloudLogConsole.println("Exception in onReceive usbReceiver: " + e);
-            }
-        }
-    };
-
-    private void maybeRequestUSBPermission(UsbDevice device, Context context) {
-        if (device == null) {
-            CloudLogConsole.println("maybeRequestUSBPermission got a null device");
-            return;
-        }
-
-        // Using arduino vendor ID: 0x1a86 and product ID: 0x7523
-        // This may be different if the arudino is not an uno or has a different usb chip.
-        if ((device.getVendorId() == 0x1a86) &&
-            (device.getProductId() == 0x7523)) {
-            Log.i(TAG, "Found an Arduino (VID: " + device.getVendorId() +  ", PID: " + device.getProductId() + ")");
-
-            PendingIntent pendingIntent = PendingIntent.getBroadcast(context, 0, new Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_MUTABLE);
-            ((UsbManager) context.getSystemService(Context.USB_SERVICE)).requestPermission(device, pendingIntent);
-        } else {
-            CloudLogConsole.println("Found a USB device that's not a Arduino (VID: " + device.getVendorId() + ", PID: " + device.getProductId() + ")");
-        }
-    }
-
-    public static native void nativeStart(int fd);
-    public static native void nativeStop();
-}
-
-class ArduinoInstance implements SerialInputOutputManager.Listener {
-    private static final String TAG = "FlowPilot";
-    private Activity activity;
-    private static ZMQPubHandler ph = new ZMQPubHandler();
-
-    public ArduinoInstance(Activity activity) {
-        this.activity = activity;
         ph.createPublishers(Arrays.asList("can", "pandaStates", "gpsLocationExternal", "accelerometer", "gyroscope", "peripheralState", "driverState", "driverMonitoringState"));
+        sh.createSubscribers(Arrays.asList("sendcan"));
 
         ArduinoInstance.DummyPandaInstance dummyPanda = this.new DummyPandaInstance();
         dummyPanda.start();
+
+        // startCanReplay();
+        startSendCanThread();
+    }
+
+    public ArduinoInstance(Context ctx, Activity activity, UsbSerialPort port) {
+        this(ctx, activity);
+        this.port = port;
     }
 
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
@@ -187,10 +92,99 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
         return new String(hexChars);
     }
 
+    private void startCanReplay() {
+        if (replayRunning) return;
+
+        replayRunning = true;
+        Thread replayThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                replayCanAsset();
+            }
+        }, "ArduinoCanReplay");
+        replayThread.start();
+    }
+
+    private void replayCanAsset() {
+        while (replayRunning) {
+            try (InputStream in = ctx.getAssets().open(CAN_REPLAY_ASSET)) {
+                byte[] record = new byte[CAN_REPLAY_RECORD_SIZE];
+                int sent = 0;
+
+                while (replayRunning && readFullRecord(in, record)) {
+                    int dlc = record[5] & 0xFF;
+                    int delayMs = ((record[7] & 0xFF) << 8) | (record[6] & 0xFF);
+                    if (dlc > 8) {
+                        CloudLogConsole.println("Skipping CAN replay record with invalid DLC: " + dlc);
+                        continue;
+                    }
+
+                    if (delayMs > 0) {
+                        Thread.sleep(delayMs);
+                    }
+
+                    publishReplayCan(record, dlc);
+                    sent++;
+                }
+
+                CloudLogConsole.println("Finished Android CAN replay pass, published " + sent + " frames");
+            } catch (IOException e) {
+                CloudLogConsole.println("No Android CAN replay asset found at assets/" + CAN_REPLAY_ASSET + ": " + e);
+                replayRunning = false;
+            } catch (Exception e) {
+                CloudLogConsole.println("Exception in Android CAN replay: " + e);
+                replayRunning = false;
+            }
+        }
+    }
+
+    private void publishReplayCan(byte[] record, int dlc) {
+        ByteBuffer canIdBuffer = ByteBuffer.wrap(record, 0, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        int canId = canIdBuffer.getInt();
+        byte bus = record[4];
+
+        byte[] canData = new byte[dlc];
+        System.arraycopy(record, 8, canData, 0, dlc);
+
+        MsgCanData msgCanData = new MsgCanData(dlc);
+        msgCanData.canData.get(0).setAddress(canId);
+        msgCanData.canData.get(0).setSrc(bus);
+        msgCanData.canData.get(0).setBusTime((short)0);
+        msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
+        ph.publishBuffer("can", msgCanData.serialize(true));
+    }
+
+    private boolean readFullRecord(InputStream in, byte[] record) throws IOException {
+        int offset = 0;
+        while (offset < record.length) {
+            int read = in.read(record, offset, record.length - offset);
+            if (read < 0) {
+                return false;
+            }
+            offset += read;
+        }
+        return true;
+    }
+
     @Override
     public void onNewData(byte[] data) {
+        // try {
+        //     // CloudLogConsole.println("newData: " + bytesToHex(data));
+        //     CloudLogConsole.println("newData: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat());
 
-        if (data.length < 8) return;
+        //     // byte[] fakeDat = new byte[] { (byte)0x0F, (byte)0xF1 };
+        //     byte[] fakeDat = new byte[] { (byte)0x6E, (byte)0x28, (byte)0x00, (byte)0x80, (byte)0x64, (byte)0x80, (byte)0x1C, (byte)0x63 };
+        //     sendSerial(fakeDat);
+        //     // Thread.sleep(1000);
+        // } catch (Exception e) {
+        //     CloudLogConsole.println("Exception in onNewData: " + e);
+        // }
+        // return;
+
+        if (data.length < 8) {
+            CloudLogConsole.println("newData: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat());
+            return;
+        }
 
         // First 4 bytes represent canid
         ByteBuffer buffer = ByteBuffer.wrap(data, 0, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
@@ -228,6 +222,66 @@ class ArduinoInstance implements SerialInputOutputManager.Listener {
     @Override
     public void onRunError(Exception e) {
         CloudLogConsole.println("onRunError exception in ArduinoInstance: " + e);
+    }
+
+    public void startSendCanThread() {
+        CloudLogConsole.println("startSendCanThread started");
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                sendCanThread();
+            }
+        }, "sendCanThread");
+        thread.start();
+    }
+
+    public void sendCanThread() {
+        while (true) {
+            if (sh.updated("sendcan")) {
+                Definitions.Event.Reader event = sh.recv("sendcan");
+                ByteBuffer buffer = event.getSendcan().get(0).getDat().asByteBuffer();
+                byte[] data = new byte[buffer.remaining()];
+                buffer.get(data);
+
+                sendSerial(data);
+
+                // // Extract DESIRED_ANGLE signal from LKAS message (CAN ID 361)
+                // // DBC definition: SG_ DESIRED_ANGLE : 7|18@0+ (-0.01,1310)
+                // // Start bit: 7, Length: 18 bits, Motorola byte order
+                // // Scale: -0.01, Offset: 1310
+                
+                // int byte0 = data[0] & 0xFF;
+                // int byte1 = data[1] & 0xFF;
+                // int byte2 = data[2] & 0xFF;
+                
+                
+                // // Extract 18-bit raw value starting at bit 7 (Motorola format)
+                // // Bits 7-0 from byte0, bits 15-8 from byte1, bits 17-16 from byte2
+                // int rawValue = (byte0 << 10) | (byte1 << 2) | (byte2 >> 6);
+                
+                // // Apply DBC scale (-0.01) and offset (1310) to get physical angle in degrees
+                // double desiredAngleDeg = (rawValue * -0.01) + 1310;
+                
+                // CloudLogConsole.println("sendcan - raw: " + rawValue + ", DESIRED_ANGLE: " + String.format("%.2f", desiredAngleDeg) + "°");
+
+
+                // CloudLogConsole.println("sendcan: " + bytesToHex(data));
+            }
+        }
+    }
+
+    public void sendSerial(byte[] data) {
+        try {
+            if (port == null) {
+                CloudLogConsole.println("ArduinoInstance in read-only mode, usbserialport not initialized.");
+                return;
+            }
+
+            port.write(data, 0);
+        } catch (Exception e) {
+            CloudLogConsole.println("Exception in sendSerial: " + e);
+        }
+
     }
 
     class DummyPandaInstance implements Runnable {

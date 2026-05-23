@@ -531,6 +531,8 @@ class Controls:
                                                                              self.last_actuators, self.steer_limited, self.desired_curvature,
                                                                              self.desired_curvature_rate, self.sm['liveLocationKalman'])
       actuators.curvature = self.desired_curvature
+    
+    # cloudlog.info(f"lac_log.steeringAngleDesiredDeg:{lac_log.steeringAngleDesiredDeg}")
 
     # Ensure no NaNs/Infs
     for p in ACTUATOR_FIELDS:
@@ -631,15 +633,13 @@ class Controls:
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg)
     curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, 0.0)
 
-    cloudlog.info(
-      f"CS_angle={CS.steeringAngleDeg:.1f} "
-
-      # f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
-      # f"target={CC.actuators.steeringAngleDeg:.1f} "
-      # f"output={CC.actuatorsOutput.steeringAngleDeg:.1f} "
-      # f"limited={self.steer_limited}"
-      # f"steer_angle_without_offset={steer_angle_without_offset}"
-    )
+    # cloudlog.info(
+    #   f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
+    #   f"target={CC.actuators.steeringAngleDeg:.1f} "
+    #   f"output={CC.actuatorsOutput.steeringAngleDeg:.1f} "
+    #   f"limited={self.steer_limited}"
+    #   f"steer_angle_without_offset={steer_angle_without_offset}"
+    # )
 
     # controlsState
     dat = messaging.new_message('controlsState')

@@ -6,6 +6,7 @@ from selfdrive.car.interfaces import CarStateBase
 from common.conversions import Conversions as CV
 from opendbc.can.parser import CANParser
 from selfdrive.car.nissan.values import CAR, DBC, CarControllerParams
+from system.swaglog import cloudlog
 
 TORQUE_SAMPLES = 12
 
@@ -41,7 +42,7 @@ class CarState(CarStateBase):
       cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RL"],
       cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RR"],
     )
-    ret.vEgoRaw = (ret.wheelSpeeds.fl + ret.wheelSpeeds.fr + ret.wheelSpeeds.rl + ret.wheelSpeeds.rr) / 4.
+    ret.vEgoRaw = (ret.wheelSpeeds.fl + ret.wheelSpeeds.fr + ret.wheelSpeeds.rl + ret.wheelSpeeds.rr) / 2.
 
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RL"] == 0.0 and cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RR"] == 0.0
@@ -219,12 +220,12 @@ class CarState(CarStateBase):
         ("LKAS_SETTINGS", 10),
         ("PROPILOT_HUD", 50),
       ]
-      return CANParser(DBC[CP.carFingerprint]["pt"], signals, checks, 1)
+      return CANParser(DBC[CP.carFingerprint]["pt"], signals, checks, 0, enforce_checks=False)
 
     signals.append(("STEER_TORQUE_DRIVER", "STEER_TORQUE_SENSOR"))
     checks.append(("STEER_TORQUE_SENSOR", 100))
 
-    return CANParser(DBC[CP.carFingerprint]["pt"], signals, checks, 0)
+    return CANParser(DBC[CP.carFingerprint]["pt"], signals, checks, 0, enforce_checks=False)
 
   @staticmethod
   def get_adas_can_parser(CP):

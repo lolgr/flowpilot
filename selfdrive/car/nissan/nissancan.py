@@ -10,6 +10,7 @@ def create_steering_control(packer, apply_steer, frame, steer_on, lkas_max_torqu
   values = {
     "COUNTER": frame % 0x10,
     "DESIRED_ANGLE": apply_steer,
+    # "DESIRED_ANGLE": 0xB6,
     "SET_0x80_2": 0x80,
     "SET_0x80": 0x80,
     "MAX_TORQUE": lkas_max_torque if steer_on else 0,
