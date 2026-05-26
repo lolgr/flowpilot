@@ -129,7 +129,7 @@ public class USBManager implements SensorInterface {
                     port.setParameters(115200, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE);
 
                     ArduinoInstance arduinoinstance = new ArduinoInstance(ctx, activity, port);
-                    byte[] initMsg = new byte[] { (byte)0x0F, (byte)0xF1, (byte)0x0B, (byte)0x07, (byte)0xF2, (byte)0xBE, (byte)0x0D, (byte)0x05 };
+                    byte[] initMsg = new byte[] { (byte)0x0F, (byte)0xF1, (byte)0x0B, (byte)0x07, (byte)0xF2, (byte)0xBE, (byte)0x0D, (byte)0x05, (byte)0x0D, (byte)0x0A };
                     arduinoinstance.sendSerial(initMsg);
 
                     SerialInputOutputManager usbIoManager = new SerialInputOutputManager(port, arduinoinstance);
