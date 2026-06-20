@@ -633,13 +633,13 @@ class Controls:
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg)
     curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, 0.0)
 
-    cloudlog.info(
+    # cloudlog.info(
     #   f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
-      f"target={CC.actuators.steeringAngleDeg:.1f} "
+      # f"target={CC.actuators.steeringAngleDeg:.1f} "
     #   f"output={CC.actuatorsOutput.steeringAngleDeg:.1f} "
     #   f"limited={self.steer_limited}"
     #   f"steer_angle_without_offset={steer_angle_without_offset}"
-    )
+    # )
 
     # controlsState
     dat = messaging.new_message('controlsState')
@@ -753,14 +753,14 @@ class Controls:
       # self.rk.monitor_time()
 
       # TODO: remove this after testing
-      if self.i % 500 == 0:
-        cloudlog.info("---------------"
-                      f"{self.events.events}"
-                      f"enabled: {self.enabled}"
-                      f"current alerts: {self.current_alert}"
-                      f"timer_now: {sec_since_boot()}"
-                      "---------------")
-      self.i += 1
+      # if self.i % 500 == 0:
+      #   cloudlog.info("---------------"
+      #                 f"{self.events.events}"
+      #                 f"enabled: {self.enabled}"
+      #                 f"current alerts: {self.current_alert}"
+      #                 f"timer_now: {sec_since_boot()}"
+      #                 "---------------")
+      # self.i += 1
 
 try:
   def main(sm=None, pm=None, logcan=None):

@@ -127,7 +127,7 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
                     sent++;
                 }
 
-                CloudLogConsole.println("Finished Android CAN replay pass, published " + sent + " frames");
+                // CloudLogConsole.println("Finished Android CAN replay pass, published " + sent + " frames");
             } catch (IOException e) {
                 CloudLogConsole.println("No Android CAN replay asset found at assets/" + CAN_REPLAY_ASSET + ": " + e);
                 replayRunning = false;

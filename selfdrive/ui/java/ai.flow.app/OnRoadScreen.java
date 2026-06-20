@@ -8,6 +8,7 @@ import ai.flow.common.transformations.Camera;
 import ai.flow.common.utils;
 import ai.flow.definitions.CarDefinitions.CarControl.HUDControl.AudibleAlert;
 import ai.flow.definitions.Definitions;
+import ai.flow.definitions.CarDefinitions;
 import ai.flow.modeld.CommonModelF3;
 import ai.flow.modeld.ModelExecutor;
 import ai.flow.modeld.ModelExecutorF3;
@@ -124,12 +125,14 @@ public class OnRoadScreen extends ScreenAdapter {
     String cameraBufferTopic = "wideRoadCameraBuffer";
     String calibrationTopic = "liveCalibration";
     String carStateTopic = "carState";
+    String carControlTopic = "carControl";
     String controlsStateTopic = "controlsState";
     String deviceStateTopic = "deviceState";
     String Line1 = "Empty", Line2 = "Empty";
     public static int CamExposure, currentExposureIndex = 0;
 
     Label velocityLabel, velocityUnitLabel, alertText1, alertText2, maxCruiseSpeedLabel, dateLabel, vesrionLabel;
+    Label desireAngleLabel, calibrationLabel;
     Table velocityTable, maxCruiseTable, alertTable, infoTable, offRoadTable, rootTable, offRoadRootTable;
     Stack statusLabelTemp, statusLabelCan, statusLabelOnline, maxCruise;
     ScrollPane notificationScrollPane;
@@ -364,6 +367,12 @@ public class OnRoadScreen extends ScreenAdapter {
         velocityTable.align(Align.top);
         velocityTable.padTop(20 * heightScale);
 
+        Table topDebugTable = new Table();
+        topDebugTable.setFillParent(true);
+        topDebugTable.align(Align.topRight);
+        topDebugTable.padTop(20 * heightScale);
+        topDebugTable.padRight(50 * widthScale);
+
         maxCruiseTable = new Table();
         maxCruiseTable.setFillParent(true);
         maxCruiseTable.align(Align.topLeft);
@@ -417,6 +426,13 @@ public class OnRoadScreen extends ScreenAdapter {
 
         velocityLabel = new Label("", appContext.skin, "default-font-bold-large", "white");
         velocityLabel.setColor(0.5f, 1f, 0.5f, 1f);
+
+        desireAngleLabel = new Label("", appContext.skin, "default-font", "white");
+        desireAngleLabel.setColor(0.5f, 1f, 0.5f, 1f);
+
+        calibrationLabel = new Label("", appContext.skin, "default-font", "white");
+        calibrationLabel.setColor(0.5f, 1f, 0.5f, 1f);
+
         velocityUnitLabel = new Label("", appContext.skin, "default-font", "white");
         velocityUnitLabel.setColor(0.5f, 1f, 0.5f, 1f);
         isMetric = true;//params.existsAndCompare("IsMetric", true);
@@ -432,6 +448,10 @@ public class OnRoadScreen extends ScreenAdapter {
         velocityTable.add(velocityLabel).align(Align.top);
         velocityTable.row();
         velocityTable.add(velocityUnitLabel).fillY().align(Align.top);
+
+        topDebugTable.add(desireAngleLabel).align(Align.topRight);
+        topDebugTable.row();
+        topDebugTable.add(calibrationLabel).fillY().align(Align.topRight);
 
         alertTable.add(alertText1);
         alertTable.row();
@@ -467,6 +487,7 @@ public class OnRoadScreen extends ScreenAdapter {
         stageUI.addActor(velocityTable);
         stageUI.addActor(maxCruiseTable);
         stageUI.addActor(alertTable);
+        stageUI.addActor(topDebugTable);
         stageSettings.addActor(rootTable);
 
         velocityTable.moveBy(settingsBarWidth/2f, 0); // TODO is this really correct ?
@@ -487,7 +508,7 @@ public class OnRoadScreen extends ScreenAdapter {
         animationNight = GifDecoder.loadGIFAnimation(Animation.PlayMode.LOOP, Gdx.files.internal("gifs/night.gif").read());
 
         sh = new ZMQSubHandler(true);
-        sh.createSubscribers(Arrays.asList("lateralPlan", cameraTopic, cameraBufferTopic, deviceStateTopic, calibrationTopic, carStateTopic, controlsStateTopic, modelTopic, "roadCameraBuffer", "roadCameraState"));
+        sh.createSubscribers(Arrays.asList("lateralPlan", cameraTopic, cameraBufferTopic, deviceStateTopic, calibrationTopic, carStateTopic, carControlTopic, controlsStateTopic, modelTopic, "roadCameraBuffer", "roadCameraState"));
     }
 
     public static boolean HideInfoTable;
@@ -560,10 +581,17 @@ public class OnRoadScreen extends ScreenAdapter {
 
     public void updateCarState() {
         Definitions.Event.Reader event = sh.recv(carStateTopic);
-        LatestvEgo = event.getCarState().getVEgo();
+        CarDefinitions.CarState.Reader carState = event.getCarState();
+        LatestvEgo = carState.getVEgo();
         float vel = isMetric ? LatestvEgo * 3.6f : LatestvEgo * 2.237f;
         velocityLabel.setText(Integer.toString((int)vel));
         setUnits();
+    }
+
+    public void updateCarControl() {
+        Definitions.Event.Reader event = sh.recv(carControlTopic);
+        CarDefinitions.CarControl.Reader carControl = event.getCarControl();
+        desireAngleLabel.setText(String.format("%.2f", carControl.getActuators().getSteeringAngleDeg()));
     }
 
     public void updateControls() {
@@ -797,6 +825,9 @@ public class OnRoadScreen extends ScreenAdapter {
             if (sh.updated(carStateTopic))
                 updateCarState();
 
+            if (sh.updated(carControlTopic))
+                updateCarControl();
+
             drawAlert(controlState);
 
             stageUI.getViewport().apply();
@@ -847,6 +878,7 @@ public class OnRoadScreen extends ScreenAdapter {
 
         if (sh.updated(calibrationTopic)) {
             Definitions.LiveCalibrationData.Reader liveCalib = sh.recv(calibrationTopic).getLiveCalibration();
+            calibrationLabel.setText(liveCalib.getCalStatus().toString());
             updateAugmentVectors(liveCalib);
         }
 
