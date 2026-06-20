@@ -168,62 +168,62 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
 
     @Override
     public void onNewData(byte[] data) {
-        try {
-            // CloudLogConsole.println("newData: " + bytesToHex(data));
-            // CloudLogConsole.println("newData: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat());
-            CloudLogConsole.println("newData HEX:" + bytesToHex(data) + "  float: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat() + " length: " + data.length);
+        // try {
+        //     // CloudLogConsole.println("newData: " + bytesToHex(data));
+        //     // CloudLogConsole.println("newData: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat());
+        //     CloudLogConsole.println("newData HEX:" + bytesToHex(data) + "  float: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat() + " length: " + data.length);
 
-            // byte[] fakeDat = new byte[] { (byte)0x0F, (byte)0xF1 };
-            // byte[] fakeDat = new byte[] { (byte)0x6E, (byte)0x28, (byte)0x00, (byte)0x80, (byte)0x64, (byte)0x80, (byte)0x1C, (byte)0x63 };
-            // sendSerial(fakeDat);
+        //     // byte[] fakeDat = new byte[] { (byte)0x0F, (byte)0xF1 };
+        //     // byte[] fakeDat = new byte[] { (byte)0x6E, (byte)0x28, (byte)0x00, (byte)0x80, (byte)0x64, (byte)0x80, (byte)0x1C, (byte)0x63 };
+        //     // sendSerial(fakeDat);
 
-            // Thread.sleep(1000);
-        } catch (Exception e) {
-            CloudLogConsole.println("Exception in onNewData: " + e);
-        }
-        return;
+        //     // Thread.sleep(1000);
+        // } catch (Exception e) {
+        //     CloudLogConsole.println("Exception in onNewData: " + e);
+        // }
+        // return;
         
-        // if (data.length < 8) {
-        //     if (true || data.length == 6) {
-        //         try {
-        //             CloudLogConsole.println("newData HEX:" + bytesToHex(data) + "  float: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat());
-        //         } catch (Exception e) { } 
-        //     }
+        if (data.length < 8) {
+            // if (true || data.length == 6) {
+            //     try {
+            //         CloudLogConsole.println("newData HEX:" + bytesToHex(data) + "  float: " + ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN).getFloat());
+            //     } catch (Exception e) { } 
+            // }
 
-        //     return;
+            return;
+        }
+
+        // First 4 bytes represent canid
+        ByteBuffer buffer = ByteBuffer.wrap(data, 0, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        Integer canId = buffer.getInt();
+
+        // DLC is 5th byte
+        int dlc = data[4] & 0xFF;
+        if (data.length < 8 + dlc) return;
+        
+        // Header is 8 bytes; copy only the CAN payload into the Cap'n Proto dat field.
+        byte[] canData = new byte[dlc];
+        System.arraycopy(data, 8, canData, 0, dlc);
+
+        // byte[] canData = new byte[dlc];
+        // ByteBuffer.wrap(data, 8, dlc).get(canData);
+
+        // byte[] canData = new byte[] { (byte)0x0F, (byte)0xF1, (byte)0x0B, (byte)0x07, (byte)0xF2, (byte)0xBE, (byte)0x5D, (byte)0x0D };
+        // MsgCanData msgCanData = new MsgCanData(8);
+
+        // if (canId == 0x02) {
+        //     // double raw = ((short)((data[8] & 0xFF) | ((data[9] & 0xFF) << 8))) * 0.1;
+        //     double raw = ((short)((canData[0] & 0xFF) | ((canData[1] & 0xFF) << 8))) * 0.1;
+        //     CloudLogConsole.println("Found Steering: " + raw);
         // }
 
-        // // First 4 bytes represent canid
-        // ByteBuffer buffer = ByteBuffer.wrap(data, 0, 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
-        // Integer canId = buffer.getInt();
+        MsgCanData msgCanData = new MsgCanData(dlc);
 
-        // // DLC is 5th byte
-        // int dlc = data[4] & 0xFF;
-        // if (data.length < 8 + dlc) return;
-        
-        // // Header is 8 bytes; copy only the CAN payload into the Cap'n Proto dat field.
-        // byte[] canData = new byte[dlc];
-        // System.arraycopy(data, 8, canData, 0, dlc);
-
-        // // byte[] canData = new byte[dlc];
-        // // ByteBuffer.wrap(data, 8, dlc).get(canData);
-
-        // // byte[] canData = new byte[] { (byte)0x0F, (byte)0xF1, (byte)0x0B, (byte)0x07, (byte)0xF2, (byte)0xBE, (byte)0x5D, (byte)0x0D };
-        // // MsgCanData msgCanData = new MsgCanData(8);
-
-        // // if (canId == 0x02) {
-        // //     // double raw = ((short)((data[8] & 0xFF) | ((data[9] & 0xFF) << 8))) * 0.1;
-        // //     double raw = ((short)((canData[0] & 0xFF) | ((canData[1] & 0xFF) << 8))) * 0.1;
-        // //     CloudLogConsole.println("Found Steering: " + raw);
-        // // }
-
-        // MsgCanData msgCanData = new MsgCanData(dlc);
-
-        // msgCanData.canData.get(0).setAddress(canId);
-        // msgCanData.canData.get(0).setSrc((byte)0);
-        // msgCanData.canData.get(0).setBusTime((short)0);
-        // msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
-        // ph.publishBuffer("can", msgCanData.serialize(true));
+        msgCanData.canData.get(0).setAddress(canId);
+        msgCanData.canData.get(0).setSrc((byte)0);
+        msgCanData.canData.get(0).setBusTime((short)0);
+        msgCanData.canData.get(0).getDat().asByteBuffer().put(canData);
+        ph.publishBuffer("can", msgCanData.serialize(true));
     }
 
     @Override
@@ -278,10 +278,11 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
                 // byte[] sendcanBuffer = new byte[] { (byte)0x40, (byte)0x60, (byte)0xEA, (byte)0x47, (byte)0x0D, (byte)0x0A };
                 sendSerial(sendcanBuffer);
 
-                CloudLogConsole.println("sendcan: " + bytesToHex(sendcanBuffer));
+                // CloudLogConsole.println("sendcan: " + bytesToHex(sendcanBuffer));
 
                 try {
-                    Thread.sleep(100);
+                    Thread.sleep(30);
+                    // Thread.sleep(100);
                 } catch (Exception e) { }
 
                 // counter++;
@@ -298,7 +299,7 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
     public void sendSerial(byte[] data) {
         try {
             if (port == null) {
-                CloudLogConsole.println("ArduinoInstance in read-only mode, usbserialport not initialized.");
+                // CloudLogConsole.println("ArduinoInstance in read-only mode, usbserialport not initialized.");
                 return;
             }
 

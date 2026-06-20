@@ -633,13 +633,13 @@ class Controls:
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg)
     curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, 0.0)
 
-    # cloudlog.info(
+    cloudlog.info(
     #   f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
-    #   f"target={CC.actuators.steeringAngleDeg:.1f} "
+      f"target={CC.actuators.steeringAngleDeg:.1f} "
     #   f"output={CC.actuatorsOutput.steeringAngleDeg:.1f} "
     #   f"limited={self.steer_limited}"
     #   f"steer_angle_without_offset={steer_angle_without_offset}"
-    # )
+    )
 
     # controlsState
     dat = messaging.new_message('controlsState')
@@ -691,12 +691,12 @@ class Controls:
     self.pm.send('controlsState', dat)
 
     # carState
-    # car_events = self.events.to_msg()
-    # cs_send = messaging.new_message('carState')
-    # cs_send.valid = CS.canValid
-    # cs_send.carState = CS
-    # cs_send.carState.events = car_events
-    # self.pm.send('carState', cs_send)
+    car_events = self.events.to_msg()
+    cs_send = messaging.new_message('carState')
+    cs_send.valid = CS.canValid
+    cs_send.carState = CS
+    cs_send.carState.events = car_events
+    self.pm.send('carState', cs_send)
 
     # carEvents - logged every second or on change
     # if (self.sm.frame % int(1. / DT_CTRL) == 0) or (self.events.names != self.events_prev):
