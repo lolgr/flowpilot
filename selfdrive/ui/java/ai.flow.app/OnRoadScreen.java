@@ -435,7 +435,7 @@ public class OnRoadScreen extends ScreenAdapter {
 
         velocityUnitLabel = new Label("", appContext.skin, "default-font", "white");
         velocityUnitLabel.setColor(0.5f, 1f, 0.5f, 1f);
-        isMetric = true;//params.existsAndCompare("IsMetric", true);
+        isMetric = false;//params.existsAndCompare("IsMetric", true);
 
         alertText1 = new Label("Flowpilot Unavailable", appContext.skin, "default-font-bold-med", "white");
         alertText2 = new Label("Waiting for controls to start", appContext.skin, "default-font", "white");
@@ -780,7 +780,10 @@ public class OnRoadScreen extends ScreenAdapter {
     }
 
     public void setUnits(){
-        velocityUnitLabel.setText("km/h");
+        if (isMetric)
+            velocityUnitLabel.setText("km/h");
+        else
+            velocityUnitLabel.setText("mph");
     }
 
     @Override

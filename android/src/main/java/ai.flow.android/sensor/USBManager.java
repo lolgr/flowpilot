@@ -83,7 +83,7 @@ public class USBManager implements SensorInterface {
             maybeRequestUSBPermission(usbDevice, ctx);
         }
 
-        ArduinoInstance arduinoinstance = new ArduinoInstance(ctx, activity);
+        // ArduinoInstance arduinoinstance = new ArduinoInstance(ctx, activity);
     }
 
     private BroadcastReceiver usbReceiver = new BroadcastReceiver() {

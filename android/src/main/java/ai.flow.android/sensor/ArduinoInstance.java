@@ -72,7 +72,7 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
         ArduinoInstance.DummyPandaInstance dummyPanda = this.new DummyPandaInstance();
         dummyPanda.start();
 
-        startCanReplay();
+        // startCanReplay();
         startSendCanThread();
     }
 
