@@ -61,7 +61,7 @@ can_sends_total = 0
 
 class Controls:
   def __init__(self, sm=None, pm=None, can_sock=None, CI=None):
-    cloudlog.info("Controls Class Init")
+    #cloudlog.info("Controls Class Init")
     config_realtime_process(4, Priority.CTRL_HIGH)
 
     # Ensure the current branch is cached, otherwise the first iteration of controlsd lags
@@ -100,7 +100,7 @@ class Controls:
 
     if CI is None:
       # wait for one pandaState and one CAN packet
-      cloudlog.info("Waiting for CAN messages...")
+      #cloudlog.info("Waiting for CAN messages...")
       get_one_can(self.can_sock)
 
       num_pandas = len(messaging.recv_one_retry(self.sm.sock['pandaStates']).pandaStates)
@@ -211,7 +211,7 @@ class Controls:
     # controlsd is driven by can recv, expected at 50Hz
     self.rk = Ratekeeper(50, print_delay_threshold=None)
     self.prof = Profiler(False)  # off by default
-    cloudlog.info("Controls Class Init Ended")
+    #cloudlog.info("Controls Class Init Ended")
 
   def set_initial_state(self):
     if REPLAY:
@@ -280,9 +280,9 @@ class Controls:
       # if safety_mismatch or self.mismatch_counter >= 200:
         # self.events.add(EventName.controlsMismatch)
       # if safety_mismatch:
-        # cloudlog.info(f"safety_mismatch is true: {pandaState.safetyModel}")
+        # #cloudlog.info(f"safety_mismatch is true: {pandaState.safetyModel}")
       # if self.mismatch_counter >= 200:
-        # cloudlog.info(f"self.mismatch_counter >= 200 at: {self.mismatch_counter}")
+        # #cloudlog.info(f"self.mismatch_counter >= 200 at: {self.mismatch_counter}")
 
 
       if log.PandaState.FaultType.relayMalfunction in pandaState.faults:
@@ -400,7 +400,7 @@ class Controls:
 
     # ENABLED, SOFT DISABLING, PRE ENABLING, OVERRIDING
     if self.state != State.disabled:
-      cloudlog.info("state_transition state enabled")
+      #cloudlog.info("state_transition state enabled")
 
       # user and immediate disable always have priority in a non-disabled state
       if self.events.any(ET.USER_DISABLE):
@@ -412,7 +412,7 @@ class Controls:
         self.current_alert_types.append(ET.IMMEDIATE_DISABLE)
 
       else:
-        cloudlog.info("state_transition state enabled again")
+        #cloudlog.info("state_transition state enabled again")
 
         # ENABLED
         if self.state == State.enabled:
@@ -427,7 +427,7 @@ class Controls:
 
         # SOFT DISABLING
         elif self.state == State.softDisabling:
-          cloudlog.info("state_transition state soft disabling")
+          #cloudlog.info("state_transition state soft disabling")
  
           if not self.events.any(ET.SOFT_DISABLE):
             # no more soft disabling condition, so go back to ENABLED
@@ -441,7 +441,7 @@ class Controls:
 
         # PRE ENABLING
         elif self.state == State.preEnabled:
-          cloudlog.info("state_transition state pre enabling")
+          #cloudlog.info("state_transition state pre enabling")
 
           if not self.events.any(ET.PRE_ENABLE):
             self.state = State.enabled
@@ -450,7 +450,7 @@ class Controls:
 
         # OVERRIDING
         elif self.state == State.overriding:
-          cloudlog.info("state_transition state overriding")
+          #cloudlog.info("state_transition state overriding")
 
           if self.events.any(ET.SOFT_DISABLE):
             self.state = State.softDisabling
@@ -463,7 +463,7 @@ class Controls:
 
     # DISABLED
     elif self.state == State.disabled:
-      cloudlog.info("state_transition state disabled")
+      #cloudlog.info("state_transition state disabled")
 
       if self.events.any(ET.ENABLE):
         if self.events.any(ET.NO_ENTRY):
@@ -483,7 +483,7 @@ class Controls:
     self.enabled = self.state in ENABLED_STATES
     self.active = self.state in ACTIVE_STATES
 
-    cloudlog.info(f"state_transition enabled:{self.enabled} and self.active:{self.active}")
+    #cloudlog.info(f"state_transition enabled:{self.enabled} and self.active:{self.active}")
 
     if self.active:
       self.current_alert_types.append(ET.WARNING)
@@ -532,7 +532,7 @@ class Controls:
                                                                              self.desired_curvature_rate, self.sm['liveLocationKalman'])
       actuators.curvature = self.desired_curvature
     
-    # cloudlog.info(f"lac_log.steeringAngleDesiredDeg:{lac_log.steeringAngleDesiredDeg}")
+    # #cloudlog.info(f"lac_log.steeringAngleDesiredDeg:{lac_log.steeringAngleDesiredDeg}")
 
     # Ensure no NaNs/Infs
     for p in ACTUATOR_FIELDS:
@@ -633,7 +633,7 @@ class Controls:
     steer_angle_without_offset = math.radians(CS.steeringAngleDeg)
     curvature = -self.VM.calc_curvature(steer_angle_without_offset, CS.vEgo, 0.0)
 
-    # cloudlog.info(
+    # #cloudlog.info(
     #   f"enabled={self.enabled} active={self.active} latActive={CC.latActive} "
       # f"target={CC.actuators.steeringAngleDeg:.1f} "
     #   f"output={CC.actuatorsOutput.steeringAngleDeg:.1f} "
@@ -738,7 +738,7 @@ class Controls:
 
     # Compute actuators (runs PID loops and lateral MPC)
     CC, lac_log = self.state_control(CS)
-    # cloudlog.info("Controlsd step after state control")
+    # #cloudlog.info("Controlsd step after state control")
 
     # Publish data
     self.publish_logs(CS, start_time, CC, lac_log)
@@ -746,7 +746,7 @@ class Controls:
     self.CS_prev = CS
 
   def controlsd_thread(self):
-    cloudlog.info("Controlsd thread")
+    #cloudlog.info("Controlsd thread")
     self.i = 0
     while True:
       self.step()
@@ -754,7 +754,7 @@ class Controls:
 
       # TODO: remove this after testing
       # if self.i % 500 == 0:
-      #   cloudlog.info("---------------"
+      #   #cloudlog.info("---------------"
       #                 f"{self.events.events}"
       #                 f"enabled: {self.enabled}"
       #                 f"current alerts: {self.current_alert}"
@@ -764,12 +764,13 @@ class Controls:
 
 try:
   def main(sm=None, pm=None, logcan=None):
-    cloudlog.info(f"Controlsd Started")
+    #cloudlog.info(f"Controlsd Started")
     controls = Controls(sm, pm, logcan)
     controls.controlsd_thread()
-    cloudlog.info(f"Controlsd Ended")
+    #cloudlog.info(f"Controlsd Ended")
 except Exception as e:
-  cloudlog.info(f"Exception in controlsd: {str(e)}")
+  pass
+  #cloudlog.info(f"Exception in controlsd: {str(e)}")
 
 
 if __name__ == "__main__":

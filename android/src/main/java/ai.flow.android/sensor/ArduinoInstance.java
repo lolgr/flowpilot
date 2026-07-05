@@ -325,20 +325,20 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
         public void start() {
             try {
                 msgPandaState = new MsgPandaState();
-                msgPeripheralState = new MsgPeripheralState();
-                msgGpsLocationExternal = new MsgGpsLocationExternal();
-                msgAccelerometer = new MsgAccelerometer();
-                msgGyroscope = new MsgGyroscope();
-                msgDriverState = new MsgDriverState();
-                msgDriverMonitoringState = new MsgDriverMonitoringState();
+                // msgPeripheralState = new MsgPeripheralState();
+                // msgGpsLocationExternal = new MsgGpsLocationExternal();
+                // msgAccelerometer = new MsgAccelerometer();
+                // msgGyroscope = new MsgGyroscope();
+                // msgDriverState = new MsgDriverState();
+                // msgDriverMonitoringState = new MsgDriverMonitoringState();
 
                 initPandaState();
-                initPeripheralState();
-                initGpsLocationExternal();
-                initAccelerometer();
-                initGyroscope();
-                initDriverState();
-                initDriverMonitoringState();
+                // initPeripheralState();
+                // initGpsLocationExternal();
+                // initAccelerometer();
+                // initGyroscope();
+                // initDriverState();
+                // initDriverMonitoringState();
 
                 Thread dummyPandaState = new Thread(this);
                 dummyPandaState.start();
@@ -353,29 +353,31 @@ public class ArduinoInstance implements SerialInputOutputManager.Listener {
             try {
                 while (true) {
                     //TODO: fix frequency issue - doesn't account for function runtime or modulus (could skip messages)
-                    long time = System.currentTimeMillis();
+                    // long time = System.currentTimeMillis();
+                    ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
 
-                    if (time % 500L == 0) {
+                    // if (time % 500L == 0) {
                         // Runs at 2hz which is 500ms
-                        ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
+                        // ph.publishBuffer("pandaStates", msgPandaState.serialize(true));
                         // ph.publishBuffer("peripheralState", msgPeripheralState.serialize(true));
-                    }
+                    // }
 
-                    if (time % 100L == 0) {
-                        // Runs at 10hz which is 100ms
-                        ph.publishBuffer("gpsLocationExternal", msgGpsLocationExternal.serialize(true));
-                        ph.publishBuffer("driverState", msgDriverState.serialize(true));
-                        ph.publishBuffer("driverMonitoringState", msgDriverMonitoringState.serialize(true));
-                    }
+                    // if (time % 100L == 0) {
+                    //     // Runs at 10hz which is 100ms
+                    //     ph.publishBuffer("gpsLocationExternal", msgGpsLocationExternal.serialize(true));
+                    //     ph.publishBuffer("driverState", msgDriverState.serialize(true));
+                    //     ph.publishBuffer("driverMonitoringState", msgDriverMonitoringState.serialize(true));
+                    // }
 
-                    if (time % 10L == 0) {
-                        // Runs at 100hz which is 10ms
-                        msgAccelerometer.accelerometer.setTimestamp(System.currentTimeMillis());
-                        msgGyroscope.gyroscope.setTimestamp(System.currentTimeMillis());
+                    // if (time % 10L == 0) {
+                    //     // Runs at 100hz which is 10ms
+                    //     msgAccelerometer.accelerometer.setTimestamp(System.currentTimeMillis());
+                    //     msgGyroscope.gyroscope.setTimestamp(System.currentTimeMillis());
 
-                        ph.publishBuffer("accelerometer", msgAccelerometer.serialize(true));
-                        ph.publishBuffer("gyroscope", msgGyroscope.serialize(true));
-                    }
+                    //     ph.publishBuffer("accelerometer", msgAccelerometer.serialize(true));
+                    //     ph.publishBuffer("gyroscope", msgGyroscope.serialize(true));
+                    // }
+                    Thread.sleep(500);
                 }
             } catch (Exception e) {
                 CloudLogConsole.println("Exception in DummyPandaInstance run: " + e);
